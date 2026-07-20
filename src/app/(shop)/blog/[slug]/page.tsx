@@ -43,7 +43,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
           href="/blog"
           className="text-xs uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground"
         >
-          ← The Journal
+          ← Home Guides
         </Link>
         <header className="flex flex-col gap-2">
           {post.publishedAt ? (

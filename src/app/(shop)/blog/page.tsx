@@ -10,7 +10,7 @@ import { Section, SectionHeading } from '@/design-system/primitives/section';
 import { blogRepo } from '@/server/repositories/blog.repo';
 
 export const metadata = buildMetadata({
-  title: 'The Journal',
+  title: 'Home Guides',
   description:
     'Home guides — organization ideas, kitchen tips, and product know-how from the Kitchenly team.',
   path: '/blog',
@@ -30,15 +30,15 @@ export default async function BlogIndexPage() {
     <Section>
       <div className="container flex flex-col gap-10">
         <SectionHeading
-          eyebrow="The Journal"
-          title="Colour, considered."
-          description="Slow reads on shades, finishes, and the people behind the formulas."
+          eyebrow="Home Guides"
+          title="Make your space work harder."
+          description="Practical organization ideas, kitchen tips, and product know-how from the Kitchenly team."
         />
 
         {posts.length === 0 ? (
           <EmptyState
-            title="The first issue is coming soon"
-            description="Our editors are finalising the inaugural edition. Subscribe below and we will let you know when it's out."
+            title="Guides are on the way"
+            description="We're putting the finishing touches on our first home and kitchen guides. Check back soon."
           />
         ) : (
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
