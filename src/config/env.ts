@@ -17,14 +17,14 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_GTM_ID: optionalStr,
   NEXT_PUBLIC_GA_ID: optionalStr,
   // Microsoft Clarity project id — session replay + heatmaps. Loads in
-  // production only (like the pixel). Defaults to the store's project; override
-  // per environment via the env var, or set it blank to disable.
-  NEXT_PUBLIC_CLARITY_ID: z.string().default('xleyclgkht'),
+  // production only (like the pixel), and only when this is set. No default:
+  // an unset value must mean "no tracking", never "some other store's project".
+  NEXT_PUBLIC_CLARITY_ID: optionalStr,
   // "true" ⇒ GA4 events carry debug_mode so they show in DebugView.
   NEXT_PUBLIC_GA_DEBUG: optionalStr,
-  // Meta (Facebook) Pixel ID. Defaults to the store's pixel so tracking works
-  // without extra deploy config; override per environment via the env var.
-  NEXT_PUBLIC_FB_PIXEL_ID: z.string().default('1197005882688887'),
+  // Meta (Facebook) Pixel ID. No default: an unset value must mean "no
+  // tracking", never "some other store's pixel". Set per environment.
+  NEXT_PUBLIC_FB_PIXEL_ID: optionalStr,
   // First-party clickstream: optional sampling rate (0–1) applied to each click
   // before it's queued — a safety valve if volume ever spikes. Unset/invalid ⇒
   // 1 (capture all). Capture itself is production-only (gated on the environment,
