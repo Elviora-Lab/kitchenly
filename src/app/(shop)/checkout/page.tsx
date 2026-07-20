@@ -52,6 +52,7 @@ export default async function CheckoutPage() {
             lines: cart.lines,
             subtotal: cart.subtotal,
             currency: cart.currency,
+            flashSale: 'flashSale' in cart ? cart.flashSale : null,
           }}
         />
       </div>

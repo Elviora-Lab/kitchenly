@@ -72,6 +72,7 @@ export const adminNav: NavItem[] = [
   { label: 'Reviews', href: '/admin/reviews' },
   { label: 'Users', href: '/admin/users' },
   { label: 'Coupons', href: '/admin/coupons' },
+  { label: 'Flash Sale', href: '/admin/flash-sale' },
   { label: 'Analytics', href: '/admin/analytics' },
   { label: 'Audience', href: '/admin/audience' },
   { label: 'Pixel Events', href: '/admin/pixel' },

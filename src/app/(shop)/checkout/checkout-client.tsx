@@ -14,6 +14,7 @@ import { computeCheckoutTotals } from '@/lib/shipping';
 
 import { EmptyState } from '@/design-system/primitives/empty-state';
 import { Price } from '@/design-system/primitives/price';
+import { FlashSaleNotice } from '@/components/commerce/flash-sale-notice';
 import { TrustBar } from '@/components/commerce/trust-bar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,11 +48,15 @@ type CartProp = {
     variantId: string | null;
     name: string;
     unitPrice: number;
+    /** Pre-sale price — present only on flash-sale lines. */
+    originalPrice?: number;
     quantity: number;
     currency: string;
   }>;
   subtotal: number;
   currency: string;
+  /** Set when the live flash sale discounts at least one line. */
+  flashSale?: { title: string; endsAt: string } | null;
 };
 
 type PaymentMethod = 'COD' | 'CARD' | 'BANK_TRANSFER';
@@ -375,6 +380,18 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
           ))}
         </ul>
         <div className="soft-divider" />
+        {cart.flashSale ? (
+          <FlashSaleNotice
+            title={cart.flashSale.title}
+            endsAt={cart.flashSale.endsAt}
+            savings={cart.lines.reduce(
+              (sum, l) =>
+                sum + (l.originalPrice ? (l.originalPrice - l.unitPrice) * l.quantity : 0),
+              0,
+            )}
+            currency={cart.currency}
+          />
+        ) : null}
         <RewardsLadder subtotal={cart.subtotal} currency={cart.currency} />
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Subtotal</span>

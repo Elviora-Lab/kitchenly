@@ -11,6 +11,7 @@ import { BadRequestError, NotFoundError } from '@/server/http/errors';
 import { cartRepo } from '@/server/repositories/cart.repo';
 import { ordersRepo } from '@/server/repositories/orders.repo';
 import { couponsService } from '@/server/services/coupons.service';
+import { flashSaleService } from '@/server/services/flash-sale.service';
 import { promotionsService } from '@/server/services/promotions.service';
 
 const orderNumberAlphabet = customAlphabet('0123456789ABCDEFGHJKMNPQRSTVWXYZ', 8);
@@ -87,10 +88,34 @@ export const ordersService = {
         if (cart.items.length === 0) throw new BadRequestError('Cart is empty');
 
         const currency = opts.currency ?? 'PKR';
+
+        // Re-derive every line price from the live catalog + flash sale INSIDE
+        // the transaction. `cart_items.price` is only a snapshot taken at
+        // add-to-cart, and carts are long-lived (see cart-recovery.service), so
+        // trusting it would charge the sale price after the sale ended and the
+        // full price for an item added before it started. The variant price is
+        // the chargeable one; Product.price is display-only.
+        const flashDiscounts = await flashSaleService.discountsForProducts(
+          cart.items.map((item) => item.productId),
+          tx,
+        );
+        const linePrices = new Map<string, Prisma.Decimal>();
+        for (const item of cart.items) {
+          const base = item.variant
+            ? new Prisma.Decimal(item.variant.price)
+            : new Prisma.Decimal(item.price);
+          const percent = flashDiscounts.get(item.productId);
+          linePrices.set(
+            item.id,
+            percent === undefined ? base : flashSaleService.applyToPrice(base, percent),
+          );
+        }
+        const priceFor = (itemId: string) => linePrices.get(itemId) ?? new Prisma.Decimal(0);
+
         // Accumulate money with Prisma.Decimal — never JS floats — so the stored
         // totals exactly match the sum of line prices.
         const subtotal = cart.items.reduce(
-          (sum, item) => sum.add(new Prisma.Decimal(item.price).mul(item.quantity)),
+          (sum, item) => sum.add(priceFor(item.id).mul(item.quantity)),
           new Prisma.Decimal(0),
         );
 
@@ -166,8 +191,8 @@ export const ordersService = {
                 productName: item.product.name,
                 variantName: variantLabel(item.variant),
                 quantity: item.quantity,
-                unitPrice: item.price,
-                totalPrice: new Prisma.Decimal(item.price).mul(item.quantity),
+                unitPrice: priceFor(item.id),
+                totalPrice: priceFor(item.id).mul(item.quantity),
               })),
             },
             statusHistory: { create: { status: 'PENDING' } },

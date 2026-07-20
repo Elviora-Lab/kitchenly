@@ -376,6 +376,7 @@ model Product {
   recentlyViewed     RecentlyViewedProduct[]
   viewLogs           ProductViewLog[]
   stockNotifications StockNotification[]
+  flashSaleItems     FlashSaleItem[]
 
   // CHECK constraints — non-negative pricing.
   @@index([categoryId])
@@ -871,6 +872,48 @@ model AppSetting {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   @@map("app_settings")
+}
+
+/// Homepage flash sale — a scheduled window during which a curated set of
+/// products sells at a reduced price. At most one sale is live at a time
+/// (enforced in `flash-sale.actions.ts`, not by a constraint, so an admin can
+/// stage the next sale while the current one runs).
+///
+/// The discount is a PERCENTAGE, not an absolute price, because the chargeable
+/// price lives on ProductVariant and a product can have several variants at
+/// different prices — a single absolute price would be wrong for all but one.
+model FlashSale {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title     String   @default("Flash Sale") @db.VarChar(120)
+  /// Inclusive start / exclusive end of the selling window.
+  startsAt  DateTime @map("starts_at") @db.Timestamptz
+  endsAt    DateTime @map("ends_at") @db.Timestamptz
+  isActive  Boolean  @default(false) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  items FlashSaleItem[]
+
+  @@index([isActive, startsAt, endsAt])
+  @@map("flash_sales")
+}
+
+/// One curated product in a flash sale. Capped at MAX_FLASH_SALE_ITEMS (16) per
+/// sale by the server action. `position` drives homepage display order.
+model FlashSaleItem {
+  id              String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  flashSaleId     String @map("flash_sale_id") @db.Uuid
+  productId       String @map("product_id") @db.Uuid
+  /// Whole-percent discount off each variant's price. CHECK (1..90) in the migration.
+  discountPercent Int    @map("discount_percent")
+  position        Int    @default(0)
+
+  flashSale FlashSale @relation(fields: [flashSaleId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([flashSaleId, productId])
+  @@index([flashSaleId, position])
+  @@map("flash_sale_items")
 }
 
 model Banner {

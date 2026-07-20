@@ -10,6 +10,7 @@ import { closeCart, toggleCart } from '@/store/slices/ui-slice';
 import { EmptyState } from '@/design-system/primitives/empty-state';
 import { Price } from '@/design-system/primitives/price';
 import { QuantitySelector } from '@/design-system/primitives/quantity-selector';
+import { FlashSaleNotice } from '@/components/commerce/flash-sale-notice';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -25,6 +26,7 @@ import { RewardsLadder } from '@/features/promotions/components/rewards-ladder';
 
 import { useRemoveCartLineMutation, useUpdateCartLineMutation } from '../api/cart-api';
 import { useCart } from '../hooks/use-cart';
+import { selectCartFlashSale, selectCartFlashSavings } from '../store/cart-slice';
 
 export function CartDrawerTrigger() {
   const count = useCart().count;
@@ -53,6 +55,8 @@ export function CartDrawer() {
   const open = useAppSelector((s) => s.ui.cartOpen);
   const dispatch = useAppDispatch();
   const { cart, subtotal, count, updateQty, remove } = useCart();
+  const flashSale = useAppSelector(selectCartFlashSale);
+  const flashSavings = useAppSelector(selectCartFlashSavings);
   const [updateLine] = useUpdateCartLineMutation();
   const [removeLineMutation] = useRemoveCartLineMutation();
 
@@ -135,7 +139,12 @@ export function CartDrawer() {
                     >
                       {line.name}
                     </Link>
-                    <Price amount={line.unitPrice} currency={line.currency} size="sm" />
+                    <Price
+                      amount={line.unitPrice}
+                      compareAt={line.originalPrice}
+                      currency={line.currency}
+                      size="sm"
+                    />
                     <div className="mt-auto flex items-center justify-between">
                       <QuantitySelector
                         value={line.quantity}
@@ -158,6 +167,14 @@ export function CartDrawer() {
 
         {cart.lines.length > 0 ? (
           <SheetFooter className="flex-col gap-4 sm:flex-col sm:items-stretch">
+            {flashSale ? (
+              <FlashSaleNotice
+                title={flashSale.title}
+                endsAt={flashSale.endsAt}
+                savings={flashSavings}
+                currency={cart.lines[0]?.currency ?? 'PKR'}
+              />
+            ) : null}
             <RewardsLadder subtotal={subtotal} currency={cart.lines[0]?.currency ?? 'PKR'} />
             <div className="flex items-center justify-between text-sm">
               <span className="eyebrow">Subtotal</span>

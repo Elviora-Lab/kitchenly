@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 
 import { CategoryBento } from './_components/category-bento';
 import { CodSteps } from './_components/cod-steps';
+import { FlashSaleSection } from './_components/flash-sale-section';
 import { HeroShowcase } from './_components/hero-showcase';
 import { getShowcaseReviews } from './_components/homepage-modules.data';
 import { ReviewsCarousel } from './_components/reviews-carousel';
@@ -25,6 +26,7 @@ import { ValuePicks } from './_components/value-picks';
 
 import { reviewsRepo } from '@/server/repositories/reviews.repo';
 import { categoriesService } from '@/server/services/categories.service';
+import { flashSaleService } from '@/server/services/flash-sale.service';
 import { productsService } from '@/server/services/products.service';
 import { promotionsService } from '@/server/services/promotions.service';
 
@@ -60,6 +62,7 @@ export default async function HomePage() {
     reviews,
     reviewSummary,
     spendTiers,
+    flashSale,
   ] = await Promise.all([
     productsService.list({}, 'popular', 1, 8).catch(() => ({ items: [], total: 0 })),
     productsService.list({}, 'newest', 1, 8).catch(() => ({ items: [], total: 0 })),
@@ -70,6 +73,7 @@ export default async function HomePage() {
     getShowcaseReviews(12).catch(() => []),
     reviewsRepo.globalSummary().catch(() => ({ average: 0, count: 0 })),
     promotionsService.tiersForDisplay().catch(() => []),
+    flashSaleService.liveForDisplay().catch(() => null),
   ]);
 
   // Every top-level category is merchandisable. This used to require
@@ -259,6 +263,9 @@ export default async function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* ——— Flash sale — urgency, straight after the trust ledger ——— */}
+      {flashSale && <FlashSaleSection sale={flashSale} />}
 
       {/* ——— Category bento — four doors, one viewport ——— */}
       {bentoCategories.length > 0 && (

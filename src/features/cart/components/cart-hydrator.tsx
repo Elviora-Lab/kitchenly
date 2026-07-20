@@ -37,6 +37,7 @@ export function CartHydrator() {
         couponCode: data.couponCode ?? null,
         couponDiscount: null,
         shippingMethodId: null,
+        flashSale: data.flashSale ?? null,
       }),
     );
   }, [data, dispatch]);
@@ -53,6 +54,7 @@ function toSliceLine(line: {
   name: string;
   imageUrl: string;
   unitPrice: number;
+  originalPrice?: number;
   quantity: number;
   currency: string;
 }): CartLine {
@@ -65,6 +67,7 @@ function toSliceLine(line: {
     name: line.name,
     imageUrl: line.imageUrl,
     unitPrice: line.unitPrice,
+    originalPrice: line.originalPrice,
     quantity: line.quantity,
     currency: line.currency,
   };

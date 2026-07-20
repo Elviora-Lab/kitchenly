@@ -1,6 +1,6 @@
 import { baseApi } from '@/services/api';
 
-import type { CartLine } from '../store/cart-slice';
+import type { CartFlashSale, CartLine } from '../store/cart-slice';
 
 export type ServerCart = {
   id: string;
@@ -12,6 +12,8 @@ export type ServerCart = {
   total: number;
   currency: string;
   couponCode: string | null;
+  /** Set when the live flash sale discounts at least one line. */
+  flashSale: CartFlashSale | null;
 };
 
 export const cartApi = baseApi.injectEndpoints({

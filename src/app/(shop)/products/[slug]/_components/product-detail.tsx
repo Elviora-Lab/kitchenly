@@ -1,3 +1,4 @@
+import { flashPrice } from '@/lib/flash-sale';
 import { breadcrumbJsonLd, productJsonLd } from '@/lib/seo/json-ld';
 import { JsonLd } from '@/lib/seo/json-ld-component';
 
@@ -13,6 +14,7 @@ import { ProductReviews } from './product-reviews';
 import { ProductViewBeacon } from './product-view-beacon';
 
 import { reviewsRepo } from '@/server/repositories/reviews.repo';
+import { flashSaleService } from '@/server/services/flash-sale.service';
 import { productsService } from '@/server/services/products.service';
 
 type PdpProduct = Awaited<ReturnType<typeof productsService.getBySlug>>;
@@ -33,11 +35,22 @@ export async function ProductDetail({
 }) {
   // Reviews and related products are enrichment, not the product itself — a
   // transient DB failure on them must not 500 the whole PDP.
-  const [related, reviewSummary, reviews] = await Promise.all([
+  const [related, reviewSummary, reviews, flashSummary] = await Promise.all([
     productsService.getRelated(slug, 4).catch(() => []),
     reviewsRepo.summary(product.id).catch(() => ({ average: 0, count: 0 })),
     reviewsRepo.listApproved(product.id, 10).catch(() => []),
+    flashSaleService.liveSummary().catch(() => null),
   ]);
+
+  // A live flash sale on THIS product. The discount is applied to variant
+  // prices below rather than at the render site, so every downstream consumer —
+  // the price block, the optimistic cart line, GA4 add_to_cart, and the JSON-LD
+  // offer — reports the price the shopper will actually be charged.
+  const flashPercent = flashSummary?.discounts[product.id];
+  const flashSale =
+    flashPercent !== undefined && flashSummary
+      ? { title: flashSummary.title, endsAt: flashSummary.endsAt, discountPercent: flashPercent }
+      : null;
 
   const primaryImage = product.images[0]?.imageUrl;
   const galleryImages = product.images.map((img) => ({
@@ -55,17 +68,24 @@ export async function ProductDetail({
       .replace(/\s*@#?[0-9a-fA-F]{3,8}\b/i, '')
       .replace(/[·\s]+$/, '')
       .trim();
+    const listPrice = Number(v.price);
     return {
       id: v.id,
       name: name || v.sku,
       hex: hexMatch ? `#${hexMatch[1]}` : undefined,
-      price: Number(v.price),
+      price: flashSale ? flashPrice(listPrice, flashSale.discountPercent) : listPrice,
+      // Only set while a sale runs — it drives the strike-through, and a
+      // per-variant original is more honest than the product-level
+      // comparePrice, which can overstate the saving on a cheap variant.
+      originalPrice: flashSale ? listPrice : undefined,
       stockQuantity: v.stockQuantity,
       isActive: v.isActive,
     };
   });
 
-  const startingPrice = Math.min(...product.variants.map((v) => Number(v.price)));
+  // Math.min of an empty list is Infinity — guard so a product whose variants
+  // are all deactivated renders 0 rather than "Rs ∞".
+  const startingPrice = variantOptions.length ? Math.min(...variantOptions.map((v) => v.price)) : 0;
   const totalStock = product.variants.reduce((sum, v) => sum + v.stockQuantity, 0);
 
   return (
@@ -116,6 +136,7 @@ export async function ProductDetail({
           images={galleryImages}
           variants={variantOptions}
           comparePrice={product.comparePrice ? Number(product.comparePrice) : undefined}
+          flashSale={flashSale}
           currency="PKR"
           fallbackPrice={startingPrice}
           outOfStock={totalStock === 0}

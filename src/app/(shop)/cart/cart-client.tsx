@@ -13,12 +13,18 @@ import { FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import { EmptyState } from '@/design-system/primitives/empty-state';
 import { Price } from '@/design-system/primitives/price';
 import { QuantitySelector } from '@/design-system/primitives/quantity-selector';
+import { FlashSaleNotice } from '@/components/commerce/flash-sale-notice';
 import { TrustBar } from '@/components/commerce/trust-bar';
 import { Button } from '@/components/ui/button';
 
 import { useRemoveCartLineMutation, useUpdateCartLineMutation } from '@/features/cart/api/cart-api';
 import { useCart } from '@/features/cart/hooks/use-cart';
-import { type CartLine, selectCart } from '@/features/cart/store/cart-slice';
+import {
+  type CartLine,
+  selectCart,
+  selectCartFlashSale,
+  selectCartFlashSavings,
+} from '@/features/cart/store/cart-slice';
 import { RewardsLadder } from '@/features/promotions/components/rewards-ladder';
 import { useSpendDiscount } from '@/features/promotions/hooks/use-spend-discount';
 import { CartRecommendations } from '@/features/recommendations/components/cart-recommendations';
@@ -28,6 +34,8 @@ import { CouponField } from './coupon-field';
 export function CartPageClient() {
   const { cart, subtotal, count, updateQty, remove } = useCart();
   const { couponCode, couponDiscount } = useAppSelector(selectCart);
+  const flashSale = useAppSelector(selectCartFlashSale);
+  const flashSavings = useAppSelector(selectCartFlashSavings);
   const { spendDiscount } = useSpendDiscount(subtotal);
   // Best-single-wins (matches the server): the larger of coupon vs spend tier.
   const { amount: discount, source } = bestDiscount(couponDiscount ?? 0, spendDiscount);
@@ -132,7 +140,11 @@ export function CartPageClient() {
                 >
                   {line.name}
                 </Link>
-                <Price amount={line.unitPrice} currency={line.currency} />
+                <Price
+                  amount={line.unitPrice}
+                  compareAt={line.originalPrice}
+                  currency={line.currency}
+                />
                 <div className="mt-auto flex items-center justify-between">
                   <QuantitySelector
                     value={line.quantity}
@@ -153,6 +165,14 @@ export function CartPageClient() {
 
         <aside className="flex h-fit flex-col gap-4 rounded-lg border border-border bg-card p-6 lg:sticky lg:top-24">
           <h2 className="font-serif text-2xl font-light">Order summary</h2>
+          {flashSale ? (
+            <FlashSaleNotice
+              title={flashSale.title}
+              endsAt={flashSale.endsAt}
+              savings={flashSavings}
+              currency={currency}
+            />
+          ) : null}
           <RewardsLadder subtotal={subtotal} currency={currency} />
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Subtotal</span>

@@ -12,15 +12,21 @@ export type CartLine = {
   name: string;
   imageUrl: string;
   unitPrice: number;
+  /** Pre-sale price — set only while a flash sale discounts this line. */
+  originalPrice?: number;
   currency: string;
   quantity: number;
 };
+
+/** The flash sale discounting at least one line, for the cart countdown. */
+export type CartFlashSale = { title: string; endsAt: string };
 
 type CartState = {
   lines: CartLine[];
   couponCode: string | null;
   couponDiscount: number | null;
   shippingMethodId: string | null;
+  flashSale: CartFlashSale | null;
 };
 
 const initialState: CartState = {
@@ -28,6 +34,7 @@ const initialState: CartState = {
   couponCode: null,
   couponDiscount: null,
   shippingMethodId: null,
+  flashSale: null,
 };
 
 const cartSlice = createSlice({
@@ -104,4 +111,12 @@ export const selectCartCount = createSelector(selectCartLines, (lines) =>
 );
 export const selectCartSubtotal = createSelector(selectCartLines, (lines) =>
   lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0),
+);
+export const selectCartFlashSale = (s: RootState) => s.cart.flashSale;
+/** Total saved on this cart by the live flash sale (0 when none applies). */
+export const selectCartFlashSavings = createSelector(selectCartLines, (lines) =>
+  lines.reduce(
+    (sum, l) => sum + (l.originalPrice ? (l.originalPrice - l.unitPrice) * l.quantity : 0),
+    0,
+  ),
 );

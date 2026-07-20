@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Check, ChevronLeft, ChevronRight, Flame } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Flame, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAppDispatch } from '@/store/hooks';
@@ -16,6 +16,7 @@ import { cn } from '@/lib/cn';
 import { Price } from '@/design-system/primitives/price';
 import { QuantitySelector } from '@/design-system/primitives/quantity-selector';
 import { Rating } from '@/design-system/primitives/rating';
+import { FlashCountdown } from '@/components/commerce/flash-countdown';
 import { TrustBar } from '@/components/commerce/trust-bar';
 import {
   Accordion,
@@ -40,10 +41,14 @@ export type VariantOption = {
   id: string;
   name: string;
   hex?: string;
+  /** Sale price while a flash sale runs, list price otherwise. */
   price: number;
+  /** Pre-discount price — set only during a flash sale. */
+  originalPrice?: number;
   stockQuantity: number;
   isActive: boolean;
 };
+export type PdpFlashSale = { title: string; endsAt: string; discountPercent: number };
 export type IngredientItem = { id: string; name: string; description?: string | null };
 
 type Props = {
@@ -58,6 +63,7 @@ type Props = {
   images: GalleryImage[];
   variants: VariantOption[];
   comparePrice?: number;
+  flashSale?: PdpFlashSale | null;
   currency?: string;
   fallbackPrice: number;
   outOfStock: boolean;
@@ -77,6 +83,7 @@ export function ProductExperience({
   images,
   variants,
   comparePrice,
+  flashSale,
   currency = 'PKR',
   fallbackPrice,
   outOfStock,
@@ -105,8 +112,22 @@ export function ProductExperience({
     return idx >= 0 ? idx : 0;
   });
 
+  // Once the countdown expires the sale price is no longer what checkout will
+  // charge, so drop back to list pricing immediately rather than showing a
+  // stale figure until the ISR page revalidates (up to 300s later).
+  const [saleExpired, setSaleExpired] = useState(false);
+  const onSale = Boolean(flashSale) && !saleExpired;
+  const handleSaleExpire = useCallback(() => setSaleExpired(true), []);
+
   const selected = variants.find((v) => v.id === variantId);
-  const currentPrice = selected?.price ?? fallbackPrice;
+  // `price` already carries the discount when a sale was live at render time.
+  // Only an expiry mid-visit sends us back to `originalPrice`; with no sale at
+  // all `originalPrice` is undefined and `price` is simply the list price.
+  const currentPrice =
+    (saleExpired ? (selected?.originalPrice ?? selected?.price) : selected?.price) ?? fallbackPrice;
+  // During a sale the strike-through is this variant's own pre-sale price;
+  // otherwise fall back to the product-level comparePrice.
+  const currentCompareAt = onSale ? selected?.originalPrice : comparePrice;
   const maxForVariant = selected?.stockQuantity ?? 0;
   const canAdd = !!selected && selected.isActive && selected.stockQuantity > 0;
 
@@ -148,7 +169,9 @@ export function ProductExperience({
       slug: '',
       name: selected.name,
       imageUrl: active?.url ?? '',
-      unitPrice: selected.price,
+      // `currentPrice`, not `selected.price` — the optimistic line must match
+      // what the server will store, including a sale that expired mid-visit.
+      unitPrice: currentPrice,
       currency,
       quantity,
     });
@@ -156,7 +179,7 @@ export function ProductExperience({
       id: productId,
       name: selected.name,
       quantity,
-      price: selected.price,
+      price: currentPrice,
       currency,
     });
     start(async () => {
@@ -308,9 +331,22 @@ export function ProductExperience({
           </div>
 
           <div className="flex flex-col gap-5 rounded-lg border border-border bg-card p-6">
+            {onSale && flashSale ? (
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-brand-ember/25 bg-brand-ember/[0.06] px-4 py-3">
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-ember">
+                  <Zap className="size-3.5" aria-hidden />
+                  {flashSale.title} · {flashSale.discountPercent}% off
+                </span>
+                <span className="inline-flex items-baseline gap-2">
+                  <span className="text-xs text-muted-foreground">Ends in</span>
+                  <FlashCountdown endsAt={flashSale.endsAt} onExpire={handleSaleExpire} />
+                </span>
+              </div>
+            ) : null}
+
             <Price
               amount={currentPrice}
-              compareAt={comparePrice}
+              compareAt={currentCompareAt}
               currency={currency}
               size="lg"
               showSavings
@@ -477,7 +513,12 @@ export function ProductExperience({
           <div className="container flex items-center gap-3 py-3">
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{productName}</p>
-              <Price amount={currentPrice} compareAt={comparePrice} currency={currency} size="sm" />
+              <Price
+                amount={currentPrice}
+                compareAt={currentCompareAt}
+                currency={currency}
+                size="sm"
+              />
             </div>
             <Button
               size="lg"

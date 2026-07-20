@@ -165,7 +165,12 @@ const cartInclude = {
           images: { where: { isPrimary: true }, take: 1 },
         },
       },
-      variant: { select: { id: true, sku: true, size: true, shade: true, fragrance: true } },
+      // `price` is needed so the cart can re-derive live line prices rather
+      // than trusting the add-to-cart snapshot in `cart_items.price` — see
+      // `serializeCart`.
+      variant: {
+        select: { id: true, sku: true, size: true, shade: true, fragrance: true, price: true },
+      },
     },
   },
 } as const;
