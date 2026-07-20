@@ -49,9 +49,9 @@ export function NavItem({ item }: { item: NavItemType }) {
         href={item.href}
         data-track="nav"
         data-track-label={item.label}
-        className="relative rounded text-xs uppercase tracking-[0.14em] text-foreground/90 transition-colors after:absolute after:-bottom-0.5 after:left-0 after:h-0.5 after:w-full after:origin-left after:scale-x-0 after:rounded-full after:bg-brand-ember after:transition-transform after:duration-300 after:ease-swift hover:text-foreground hover:after:scale-x-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="relative shrink-0 whitespace-nowrap rounded text-xs uppercase tracking-[0.14em] text-foreground/90 transition-colors after:absolute after:-bottom-0.5 after:left-0 after:h-0.5 after:w-full after:origin-left after:scale-x-0 after:rounded-full after:bg-brand-ember after:transition-transform after:duration-300 after:ease-swift hover:text-foreground hover:after:scale-x-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        {item.label}
+        {item.shortLabel ?? item.label}
       </Link>
     );
   }

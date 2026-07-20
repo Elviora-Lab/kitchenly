@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Menu, Search } from 'lucide-react';
 
-import { mainNav } from '@/config/navigation';
+import { primaryNav, quickLinks } from '@/config/navigation';
 import { siteConfig } from '@/config/site';
 
 import { useAppDispatch } from '@/store/hooks';
@@ -112,20 +112,37 @@ export function SiteHeader({ className }: { className?: string }) {
         </div>
       </div>
 
-      {/* Category nav row (desktop) */}
+      {/* Category nav row (desktop). Categories are direct one-click links — no
+          dropdown. The row scrolls horizontally (scrollbar hidden) as a
+          graceful fallback on narrow laptops instead of wrapping/breaking. */}
       <nav className="hidden border-t border-border/40 lg:block">
-        <div className="container flex h-11 items-center gap-7">
-          {mainNav.map((item) => (
+        <div className="container flex h-11 items-center gap-x-5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {primaryNav.map((item) => (
             <NavItem key={item.href} item={item} />
           ))}
-          <Link
-            href="/products"
-            className="ml-auto text-xs font-semibold uppercase tracking-[0.12em] text-brand-ember transition-colors hover:text-brand-ember/80"
-            data-track="nav"
-            data-track-label="all-products"
-          >
-            All Products
-          </Link>
+
+          {/* Promotional shortcuts + full catalog, pinned right. */}
+          <div className="ml-auto flex shrink-0 items-center gap-x-4 pl-4">
+            {quickLinks.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                data-track="nav"
+                data-track-label={item.label}
+                className="whitespace-nowrap text-xs uppercase tracking-[0.12em] text-foreground/70 transition-colors hover:text-foreground"
+              >
+                {item.label}
+              </Link>
+            ))}
+            <Link
+              href="/products"
+              className="whitespace-nowrap text-xs font-semibold uppercase tracking-[0.12em] text-brand-ember transition-colors hover:text-brand-ember/80"
+              data-track="nav"
+              data-track-label="all-products"
+            >
+              All Products
+            </Link>
+          </div>
         </div>
       </nav>
     </header>

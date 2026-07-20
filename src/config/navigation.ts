@@ -1,7 +1,10 @@
-import { CATEGORY_TREE, orderedChildren } from '@/config/taxonomy';
+import { CATEGORY_TREE } from '@/config/taxonomy';
 
 export type NavItem = {
   label: string;
+  /** Optional compact label for the tight desktop nav row (full `label` is
+   *  used everywhere else — mobile drawer, analytics). */
+  shortLabel?: string;
   href: string;
   description?: string;
   children?: NavItem[];
@@ -9,26 +12,41 @@ export type NavItem = {
   comingSoon?: boolean;
 };
 
-export const mainNav: NavItem[] = [
-  {
-    label: 'Shop',
-    // The mega menu is data-driven: children come from the shared taxonomy
-    // (real `categories.slug` values, route `/categories/[slug]`), including
-    // one level of subcategories — so it re-shapes itself as the catalog does.
-    href: '/products',
-    children: CATEGORY_TREE.map((cat) => ({
-      label: cat.name,
-      href: `/categories/${cat.slug}`,
-      children: orderedChildren(cat).map((sub) => ({
-        label: sub.name,
-        href: `/categories/${sub.slug}`,
-      })),
-    })),
-  },
+// Compact labels for the desktop category bar, keyed by taxonomy slug. Keeping
+// them here (not in the taxonomy) means the full category name stays canonical
+// for pages, breadcrumbs, and analytics — only the tight nav row abbreviates.
+const CATEGORY_SHORT_LABELS: Record<string, string> = {
+  'kitchen-accessories': 'Kitchen',
+  'home-living': 'Living',
+  'health-beauty': 'Beauty',
+  'random-gadgets': 'Gadgets',
+  'wardrobe-organizers': 'Wardrobe',
+  'home-wall-decor': 'Decor',
+  'babies-toys': 'Babies',
+  'mobile-accessories': 'Mobile',
+};
+
+// Every top-level category, surfaced as a direct one-click link (route
+// `/categories/[slug]`). Data-driven from the shared taxonomy, so it reshapes
+// itself as the catalog changes. No dropdown — categories are visible inline.
+export const categoryNav: NavItem[] = CATEGORY_TREE.map((cat) => ({
+  label: cat.name,
+  shortLabel: CATEGORY_SHORT_LABELS[cat.slug] ?? cat.name,
+  href: `/categories/${cat.slug}`,
+}));
+
+// Promotional shortcuts — sort views over the whole catalog. Shown as compact
+// links on the right of the desktop bar; folded into the mobile drawer.
+export const quickLinks: NavItem[] = [
   { label: 'Best Sellers', href: '/products?sort=popular' },
   { label: 'New Arrivals', href: '/products?sort=newest' },
-  { label: 'Home Guides', href: '/blog' },
 ];
+
+// Desktop primary row (left side): every category, then Home Guides.
+export const primaryNav: NavItem[] = [...categoryNav, { label: 'Home Guides', href: '/blog' }];
+
+// Full flat list for the mobile drawer — one tap per destination.
+export const mainNav: NavItem[] = [...primaryNav, ...quickLinks];
 
 export const footerNav: Record<string, NavItem[]> = {
   Shop: [
