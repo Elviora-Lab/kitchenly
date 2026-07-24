@@ -19,7 +19,13 @@ const GRAPH_VERSION = 'v21.0';
 export function capiEnabled(): boolean {
   // Gate on `isProd` (matching the browser pixel) so local/preview order
   // placements never fire a real server-side Purchase to the production pixel.
-  return Boolean(isProd && serverEnv.META_CAPI_ACCESS_TOKEN && publicEnv.NEXT_PUBLIC_FB_PIXEL_ID);
+  // Exception: NEXT_PUBLIC_FB_PIXEL_DEBUG lets you exercise CAPI from dev while
+  // verifying — pair it with META_CAPI_TEST_EVENT_CODE so those events land in
+  // Events Manager → Test events instead of your live metrics.
+  const debug = publicEnv.NEXT_PUBLIC_FB_PIXEL_DEBUG === 'true';
+  return Boolean(
+    (isProd || debug) && serverEnv.META_CAPI_ACCESS_TOKEN && publicEnv.NEXT_PUBLIC_FB_PIXEL_ID,
+  );
 }
 
 // Meta's Conversions API Parameter Builder owns normalization + SHA-256 hashing

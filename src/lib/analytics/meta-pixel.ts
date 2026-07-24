@@ -18,8 +18,16 @@ declare global {
 
 export const FB_PIXEL_ID = publicEnv.NEXT_PUBLIC_FB_PIXEL_ID;
 
-/** Load the pixel only in production and only when an ID is configured. */
-export const pixelEnabled = isProd && Boolean(FB_PIXEL_ID);
+/** "true" ⇒ verify the pixel outside production (mirrors `NEXT_PUBLIC_GA_DEBUG`). */
+export const pixelDebug = publicEnv.NEXT_PUBLIC_FB_PIXEL_DEBUG === 'true';
+
+/**
+ * Load the pixel when an ID is configured AND we're in production — or when the
+ * debug flag is on, so you can verify events from any environment. Note: browser
+ * events in dev still reach the real pixel (there's no browser-side test mode),
+ * so keep the flag off except while actively verifying.
+ */
+export const pixelEnabled = Boolean(FB_PIXEL_ID) && (isProd || pixelDebug);
 
 type PixelParams = Record<string, unknown>;
 
