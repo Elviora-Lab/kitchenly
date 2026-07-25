@@ -21,6 +21,7 @@
     "db:seed:subcategories": "tsx prisma/seed-subcategories.ts",
     "db:import": "tsx prisma/import-shop-data.ts",
     "db:import:smtraders": "tsx prisma/import-shop-data.ts --dataset=smtraders",
+    "db:backfill:compare": "tsx prisma/backfill-compare-price.ts",
     "db:studio": "prisma studio",
     "db:format": "prisma format",
     "db:validate": "prisma validate",

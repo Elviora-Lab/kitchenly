@@ -180,7 +180,7 @@ export function ProductForm({
       </Field>
 
       <div className="grid gap-5 md:grid-cols-3">
-        <Field label="Price (USD)">
+        <Field label="Price (PKR)">
           <Input
             name="price"
             type="number"

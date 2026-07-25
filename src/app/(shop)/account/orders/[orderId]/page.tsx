@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { buildMetadata } from '@/lib/seo/metadata';
-import { formatDate } from '@/utils/format';
+import { formatDate, formatMoney } from '@/utils/format';
 
 import { Price } from '@/design-system/primitives/price';
 import { Badge } from '@/components/ui/badge';
@@ -248,9 +248,4 @@ function Row({ label, amount, currency }: { label: string; amount: number; curre
       <Price amount={amount} currency={currency} size="sm" />
     </div>
   );
-}
-
-// Tiny inline helper to avoid another import cycle.
-function formatMoney(amount: number, currency: string) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
 }
