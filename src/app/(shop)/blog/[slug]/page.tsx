@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -11,9 +12,13 @@ import { blogRepo } from '@/server/repositories/blog.repo';
 
 type Params = Promise<{ slug: string }>;
 
+// generateMetadata and the page body both need the post — React cache()
+// collapses them into one query per request.
+const getPost = cache((slug: string) => blogRepo.findPublishedBySlug(slug));
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
-  const post = await blogRepo.findPublishedBySlug(slug);
+  const post = await getPost(slug);
   if (!post) return buildMetadata({ title: 'Not found', path: `/blog/${slug}`, noIndex: true });
   return buildMetadata({
     title: post.seoTitle ?? post.title,
@@ -24,7 +29,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function BlogPostPage({ params }: { params: Params }) {
   const { slug } = await params;
-  const post = await blogRepo.findPublishedBySlug(slug);
+  const post = await getPost(slug);
   if (!post) notFound();
 
   return (

@@ -26,7 +26,13 @@ export const POST = createHandler(async (req) => {
     throw new UnauthorizedError('Refresh token invalid');
   }
 
-  const stored = await refreshTokensRepo.findByJti(claims.jti);
+  // Both lookups depend only on the verified claims — fetch them together.
+  // The user row is wasted work on the rare theft/expiry paths below, but
+  // saves a sequential round trip on every successful refresh.
+  const [stored, user] = await Promise.all([
+    refreshTokensRepo.findByJti(claims.jti),
+    usersRepo.findById(claims.sub),
+  ]);
 
   // Reuse / theft detection: the JWT is cryptographically valid but its server
   // record is gone or already revoked → assume the token family is compromised
@@ -43,7 +49,6 @@ export const POST = createHandler(async (req) => {
     throw new UnauthorizedError('Refresh token expired');
   }
 
-  const user = await usersRepo.findById(claims.sub);
   if (!user) throw new UnauthorizedError();
 
   // Rotate: mint a new pair, then revoke the presented token and link it to its

@@ -3,16 +3,26 @@ import 'server-only';
 import { prisma } from '@/lib/db';
 
 export const wishlistRepo = {
-  /** Wishlist rows joined with the product (and its primary image + brand). */
+  /**
+   * Wishlist rows joined with the product card fields (primary image + brand
+   * name). Selects exactly what `toProductCard` reads — not the full row.
+   */
   listForUser(userId: string) {
     return prisma.wishlist.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
-      include: {
+      select: {
         product: {
-          include: {
-            brand: { select: { name: true, slug: true } },
-            images: { where: { isPrimary: true }, take: 1 },
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            price: true,
+            comparePrice: true,
+            isFeatured: true,
+            createdAt: true,
+            brand: { select: { name: true } },
+            images: { where: { isPrimary: true }, take: 1, select: { imageUrl: true } },
           },
         },
       },

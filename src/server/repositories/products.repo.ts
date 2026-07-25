@@ -123,6 +123,14 @@ export const productsRepo = {
     });
   },
 
+  /** Lean lookup for the related-products path: just the keys, no relations. */
+  async findIdAndCategory(slug: string) {
+    return prisma.product.findUnique({
+      where: { slug },
+      select: { id: true, categoryId: true },
+    });
+  },
+
   async findRelated(productId: string, categoryId: string | null, limit: number) {
     return prisma.product.findMany({
       where: {
@@ -133,6 +141,7 @@ export const productsRepo = {
       take: limit,
       include: {
         images: { where: { isPrimary: true }, take: 1 },
+        brand: { select: { name: true } },
       },
     });
   },

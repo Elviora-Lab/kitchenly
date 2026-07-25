@@ -66,10 +66,17 @@ export const productsService = {
   },
 
   async getRelated(slug: string, limit = 4) {
-    const root = await productsRepo.findBySlug(slug);
-    if (!root) throw new NotFoundError('Product not found');
-    const related = await productsRepo.findRelated(root.id, root.categoryId, limit);
-    return related.map(toProductCard);
+    // Lean root lookup — the related query only needs the two keys, not the
+    // full 7-relation detail row `findBySlug` loads. Cached like getBySlug;
+    // 120s of staleness on a recommendation strip is harmless.
+    const cards = await cache.wrap(`product:related:${slug}:${limit}`, 120, async () => {
+      const root = await productsRepo.findIdAndCategory(slug);
+      if (!root) return null;
+      const related = await productsRepo.findRelated(root.id, root.categoryId, limit);
+      return related.map(toProductCard);
+    });
+    if (!cards) throw new NotFoundError('Product not found');
+    return cards;
   },
 
   /**

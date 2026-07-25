@@ -120,15 +120,16 @@ export const cartService = {
  * Async because the sale lookup is a DB read; every caller already awaits.
  */
 async function serializeCart(cart: Awaited<ReturnType<typeof cartRepo.findOrCreate>>) {
-  const flashDiscounts = await flashSaleService.discountsForProducts(
-    cart.items.map((item) => item.productId),
-  );
+  // Display path, so the 60s-cached summary is fine (and saves a DB round
+  // trip on every cart read): checkout re-derives the charged price inside
+  // its transaction, uncached — see the docstring above.
+  const summary = await flashSaleService.liveSummary();
 
   const lines = cart.items.map((item) => {
     // Fall back to the snapshot only when the variant is gone (a deleted
     // variant leaves the line orphaned rather than mispriced).
     const base = item.variant ? Number(item.variant.price) : Number(item.price);
-    const percent = flashDiscounts.get(item.productId);
+    const percent = summary?.discounts[item.productId];
     return {
       id: item.id,
       productId: item.productId,
@@ -147,7 +148,7 @@ async function serializeCart(cart: Awaited<ReturnType<typeof cartRepo.findOrCrea
   const subtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
   // Sale metadata for the cart/checkout countdown — only when a line is
   // actually discounted, so an unrelated sale doesn't put a clock on the page.
-  const summary = flashDiscounts.size > 0 ? await flashSaleService.liveSummary() : null;
+  const saleTouchesCart = lines.some((l) => l.originalPrice !== undefined);
 
   return {
     id: cart.id,
@@ -159,6 +160,6 @@ async function serializeCart(cart: Awaited<ReturnType<typeof cartRepo.findOrCrea
     total: subtotal,
     currency: 'PKR',
     couponCode: null as string | null,
-    flashSale: summary ? { title: summary.title, endsAt: summary.endsAt } : null,
+    flashSale: saleTouchesCart && summary ? { title: summary.title, endsAt: summary.endsAt } : null,
   };
 }

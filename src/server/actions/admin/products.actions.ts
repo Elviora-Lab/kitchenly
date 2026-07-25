@@ -318,6 +318,12 @@ export const bulkImportProducts = withAction(async (input: { rows: unknown[] }) 
   let updated = 0;
   let failed = 0;
 
+  // CSV files repeat the same handful of brands/categories on most rows —
+  // memoize the upserted ids so each distinct value costs one query per
+  // import instead of one per row.
+  const brandIdBySlug = new Map<string, string>();
+  const categoryIdBySlug = new Map<string, string>();
+
   for (const row of rows) {
     try {
       const slug = toSlug(row.name);
@@ -328,22 +334,34 @@ export const bulkImportProducts = withAction(async (input: { rows: unknown[] }) 
 
       let brandId: string | null = null;
       if (row.brand) {
-        const b = await prisma.brand.upsert({
-          where: { slug: toSlug(row.brand) },
-          update: {},
-          create: { name: row.brand, slug: toSlug(row.brand) },
-        });
-        brandId = b.id;
+        const brandSlug = toSlug(row.brand);
+        let id = brandIdBySlug.get(brandSlug);
+        if (!id) {
+          const b = await prisma.brand.upsert({
+            where: { slug: brandSlug },
+            update: {},
+            create: { name: row.brand, slug: brandSlug },
+          });
+          id = b.id;
+          brandIdBySlug.set(brandSlug, id);
+        }
+        brandId = id;
       }
 
       let categoryId: string | null = null;
       if (row.category) {
-        const c = await prisma.category.upsert({
-          where: { slug: toSlug(row.category) },
-          update: {},
-          create: { name: row.category, slug: toSlug(row.category) },
-        });
-        categoryId = c.id;
+        const categorySlug = toSlug(row.category);
+        let id = categoryIdBySlug.get(categorySlug);
+        if (!id) {
+          const c = await prisma.category.upsert({
+            where: { slug: categorySlug },
+            update: {},
+            create: { name: row.category, slug: categorySlug },
+          });
+          id = c.id;
+          categoryIdBySlug.set(categorySlug, id);
+        }
+        categoryId = id;
       }
 
       const common = {
@@ -355,18 +373,17 @@ export const bulkImportProducts = withAction(async (input: { rows: unknown[] }) 
         categoryId,
       };
 
-      const existing = await prisma.product.findUnique({ where: { slug }, select: { id: true } });
+      const existing = await prisma.product.findUnique({
+        where: { slug },
+        select: { id: true, categoryId: true },
+      });
       let productId: string;
 
       if (existing) {
         // Don't touch sku on update (avoids unique collisions).
-        const before = await prisma.product.findUnique({
-          where: { id: existing.id },
-          select: { categoryId: true },
-        });
         await prisma.product.update({ where: { id: existing.id }, data: common });
         productId = existing.id;
-        await syncPrimaryCategory(productId, before?.categoryId ?? null, categoryId);
+        await syncPrimaryCategory(productId, existing.categoryId, categoryId);
         updated++;
       } else {
         const sku = (row.sku?.trim() || `IMP-${slug}`).slice(0, 80);

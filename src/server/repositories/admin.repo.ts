@@ -129,10 +129,17 @@ export const adminProductsRepo = {
         orderBy: { createdAt: 'desc' },
         skip: opts.skip ?? 0,
         take: opts.take ?? 50,
-        include: {
-          brand: { select: { name: true } },
+        // select, not include: the table renders six columns — pulling every
+        // product column (notably the Text description) here is pure payload.
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          sku: true,
+          price: true,
+          isActive: true,
           category: { select: { name: true } },
-          images: { where: { isPrimary: true }, take: 1 },
+          images: { where: { isPrimary: true }, take: 1, select: { imageUrl: true } },
           variants: { select: { stockQuantity: true, shade: true } },
         },
       }),

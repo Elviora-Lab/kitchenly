@@ -23,6 +23,17 @@ export const cartRepo = {
       throw new Error('cartRepo.findOrCreate requires userId or sessionId');
     }
 
+    // Fast path: in the steady state the cart already exists, so resolve it
+    // with a single SELECT and skip the transaction — an interactive
+    // $transaction costs BEGIN + COMMIT round trips and pins a pooled
+    // connection on every cart read otherwise. The transaction below only
+    // needs to close the create/claim race for first-time carts.
+    const existing = await prisma.cart.findFirst({
+      where: opts.userId ? { userId: opts.userId } : { sessionId: opts.sessionId },
+      include: cartInclude,
+    });
+    if (existing) return existing;
+
     return prisma.$transaction(async (tx) => {
       if (opts.userId) {
         const userCart = await tx.cart.findFirst({

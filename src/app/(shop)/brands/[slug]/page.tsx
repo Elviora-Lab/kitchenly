@@ -49,16 +49,19 @@ export default async function BrandPage({
   const { slug } = await params;
   const sp = await searchParams;
 
-  const brand = await brandsService.getBySlug(slug);
-  if (!brand || !brand.isActive) notFound();
-
   const sortParam = str(sp.sort);
   const sort: ProductListSort = SORTS.includes(sortParam as ProductListSort)
     ? (sortParam as ProductListSort)
     : 'newest';
   const page = Math.max(1, Number(str(sp.page)) || 1);
 
-  const { items, total } = await productsService.list({ brand: slug }, sort, page, PAGE_SIZE);
+  // The product list is keyed by slug, not by the brand row — start both
+  // queries together instead of serializing them.
+  const [brand, { items, total }] = await Promise.all([
+    brandsService.getBySlug(slug),
+    productsService.list({ brand: slug }, sort, page, PAGE_SIZE),
+  ]);
+  if (!brand || !brand.isActive) notFound();
 
   return (
     <Section>

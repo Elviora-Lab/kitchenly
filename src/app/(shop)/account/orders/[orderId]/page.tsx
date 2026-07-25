@@ -38,14 +38,13 @@ export default async function CustomerOrderDetailPage({ params }: { params: Para
   const session = await requireUser();
   const { orderId } = await params;
 
-  let order;
-  try {
-    order = await ordersService.getDetail(orderId, session.sub);
-  } catch {
-    notFound();
-  }
-
-  const existingReturn = await returnsRepo.findByOrder(orderId);
+  // Independent lookups — run together. The return row is discarded when the
+  // order isn't the viewer's (the page 404s before rendering it).
+  const [order, existingReturn] = await Promise.all([
+    ordersService.getDetail(orderId, session.sub).catch(() => null),
+    returnsRepo.findByOrder(orderId),
+  ]);
+  if (!order) notFound();
 
   return (
     <div className="flex flex-col gap-6">
