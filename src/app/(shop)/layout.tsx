@@ -3,6 +3,7 @@ import { MobileNav } from '@/components/layout/mobile-nav';
 import { OfferTicker } from '@/components/layout/offer-ticker';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { SiteHeader } from '@/components/layout/site-header';
+import { WhatsAppWidget } from '@/components/layout/whatsapp-widget';
 import { Survey } from '@/components/survey/lazy-survey';
 
 import { AuthHydrator } from '@/features/auth/components/auth-hydrator';
@@ -22,6 +23,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
       <SiteFooter />
       <CartDrawer />
       <MobileNav />
+      <WhatsAppWidget />
       <ExitIntentNudge />
       {/* Zero-party "why aren't you ordering" survey — dwell-triggered so it
           doesn't collide with the exit-intent nudge above. */}
