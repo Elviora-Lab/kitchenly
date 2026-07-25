@@ -32,7 +32,11 @@ const placeOrderInput = z.object({
   address: addressBody.optional(),
   /** Guest contact email — optional; used for the confirmation email/receipt. */
   email: z.string().email().max(255).optional(),
-  paymentMethod: z.nativeEnum(PaymentMethod),
+  // BANK_TRANSFER remains in the DB enum for historical orders but is no
+  // longer offered at checkout.
+  paymentMethod: z
+    .nativeEnum(PaymentMethod)
+    .refine((m) => m !== PaymentMethod.BANK_TRANSFER, 'Bank transfer is no longer available'),
   notes: z.string().max(500).optional(),
   couponCode: z.string().min(1).max(64).optional(),
 });

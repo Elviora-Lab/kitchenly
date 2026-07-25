@@ -19,7 +19,7 @@
 
 export type ShippingZone = 'within_city' | 'same_province' | 'province_to_province';
 
-export type CheckoutPaymentMethod = 'COD' | 'CARD' | 'BANK_TRANSFER';
+export type CheckoutPaymentMethod = 'COD' | 'CARD';
 
 export const FUEL_SURCHARGE_RATE = 0.35;
 export const GST_RATE = 0.15;
@@ -103,6 +103,23 @@ export function resolveZone(city: string | null | undefined): ShippingZone {
   return 'province_to_province';
 }
 
+/**
+ * The cheapest zone on the rate card — used for optimistic "from Rs X"
+ * estimates before the customer has told us their city. Display only: the
+ * authoritative charge always resolves the zone from the real address.
+ */
+export const CHEAPEST_ZONE: ShippingZone = 'within_city';
+
+/**
+ * Cheapest possible delivery charge for a cart of `quantity` items, inclusive
+ * of fuel surcharge and GST — the floor behind "from Rs X" copy in the cart.
+ */
+export function cheapestShippingFrom(quantity = 1): number {
+  const weightKg = Math.max(1, quantity) * DEFAULT_ITEM_WEIGHT_KG;
+  const fee = baseShippingRate(CHEAPEST_ZONE, weightKg) * (1 + FUEL_SURCHARGE_RATE);
+  return Math.round(fee * (1 + GST_RATE));
+}
+
 function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -150,12 +167,18 @@ export function computeCheckoutTotals(params: {
   /** COD triggers the 4% COD tax; accepts the DB PaymentMethod enum too. */
   paymentMethod: string;
   itemWeightKg?: number;
+  /**
+   * Display-only zone override (e.g. CHEAPEST_ZONE while no city is chosen).
+   * The order service never passes this, so the charged amount always comes
+   * from the real address via resolveZone.
+   */
+  zone?: ShippingZone;
 }): CheckoutTotals {
   const discount = Math.max(0, params.discount ?? 0);
   const merchandise = Math.max(0, params.subtotal - discount);
   const weightKg = Math.max(1, params.quantity) * (params.itemWeightKg ?? DEFAULT_ITEM_WEIGHT_KG);
 
-  const zone = resolveZone(params.city);
+  const zone = params.zone ?? resolveZone(params.city);
   // Free shipping is judged on the PRE-discount subtotal, so a Spend & Save
   // reward can never accidentally drop an order below the threshold and cancel
   // free shipping. At/above the threshold: no base rate, fuel, or shipping GST.

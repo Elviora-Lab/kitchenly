@@ -8,7 +8,7 @@ import { useAppSelector } from '@/store/hooks';
 
 import { analytics } from '@/lib/analytics';
 import { bestDiscount } from '@/lib/promotions';
-import { FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
+import { cheapestShippingFrom, FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 
 import { EmptyState } from '@/design-system/primitives/empty-state';
 import { Price } from '@/design-system/primitives/price';
@@ -194,7 +194,9 @@ export function CartPageClient() {
                 <span className="font-medium text-success">Free</span>
               ) : (
                 // Within-Karachi starting rate, tax-inclusive (see /shipping copy).
-                <span className="text-muted-foreground">from Rs 155</span>
+                <span className="text-muted-foreground">
+                  from <Price amount={cheapestShippingFrom(count)} currency={currency} size="sm" />
+                </span>
               )}
             </span>
           </div>

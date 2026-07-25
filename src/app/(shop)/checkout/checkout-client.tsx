@@ -10,7 +10,7 @@ import { useAppSelector } from '@/store/hooks';
 import { analytics } from '@/lib/analytics';
 import { cn } from '@/lib/cn';
 import { bestDiscount } from '@/lib/promotions';
-import { computeCheckoutTotals } from '@/lib/shipping';
+import { CHEAPEST_ZONE, computeCheckoutTotals } from '@/lib/shipping';
 
 import { EmptyState } from '@/design-system/primitives/empty-state';
 import { Price } from '@/design-system/primitives/price';
@@ -59,7 +59,7 @@ type CartProp = {
   flashSale?: { title: string; endsAt: string } | null;
 };
 
-type PaymentMethod = 'COD' | 'CARD' | 'BANK_TRANSFER';
+type PaymentMethod = 'COD' | 'CARD';
 
 export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart: CartProp }) {
   const router = useRouter();
@@ -98,12 +98,17 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
   const destinationCity =
     addressId === 'new' ? newAddress.city : (addresses.find((a) => a.id === addressId)?.city ?? '');
   const totalQuantity = cart.lines.reduce((sum, l) => sum + l.quantity, 0);
+  // Until a city is typed, quote the cheapest zone as an optimistic "from"
+  // estimate rather than defaulting to the most expensive fallback zone. The
+  // server ignores this override and charges from the real address.
+  const cityChosen = destinationCity.trim().length > 0;
   const totals = computeCheckoutTotals({
     subtotal: cart.subtotal,
     discount,
     city: destinationCity,
     quantity: totalQuantity,
     paymentMethod,
+    zone: cityChosen ? undefined : CHEAPEST_ZONE,
   });
   const total = totals.total;
 
@@ -342,12 +347,6 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
               title="Cash on delivery"
               hint="Pay when your order arrives. Available in supported regions."
             />
-            <PaymentOption
-              active={paymentMethod === 'BANK_TRANSFER'}
-              onSelect={() => choosePayment('BANK_TRANSFER')}
-              title="Bank transfer"
-              hint="Order is placed as pending. Wire instructions are emailed."
-            />
           </CardContent>
         </Card>
 
@@ -410,22 +409,44 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
           {totals.freeShipping ? (
             <span className="font-medium uppercase tracking-wide text-emerald-600">Free</span>
           ) : (
-            <Price amount={totals.shippingFee} currency={cart.currency} size="sm" />
+            <span className="tabular-nums">
+              {cityChosen ? null : <span className="text-muted-foreground">from </span>}
+              <Price amount={totals.shippingFee} currency={cart.currency} size="sm" />
+            </span>
           )}
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
             Tax{paymentMethod === 'COD' ? ' (incl. COD)' : ''}
           </span>
-          <Price amount={totals.taxAmount} currency={cart.currency} size="sm" />
+          <span className="tabular-nums">
+            {cityChosen || totals.taxAmount === 0 ? null : (
+              <span className="text-muted-foreground">from </span>
+            )}
+            <Price amount={totals.taxAmount} currency={cart.currency} size="sm" />
+          </span>
         </div>
         <div className="flex items-center justify-between border-t border-border pt-3">
           <span className="eyebrow">Total</span>
-          <Price amount={total} currency={cart.currency} size="lg" />
+          <span className="tabular-nums">
+            {cityChosen || totals.freeShipping ? null : (
+              <span className="text-sm text-muted-foreground">from </span>
+            )}
+            <Price amount={total} currency={cart.currency} size="lg" />
+          </span>
         </div>
         <p className="text-xs text-muted-foreground">
-          Shipping &amp; tax for delivery to {destinationCity.trim() || 'your city'}, incl. 35% fuel
-          &amp; 15% GST{paymentMethod === 'COD' ? ' and 4% COD tax' : ''}.
+          {cityChosen ? (
+            <>
+              Shipping &amp; tax for delivery to {destinationCity.trim()}, incl. 35% fuel &amp; 15%
+              GST{paymentMethod === 'COD' ? ' and 4% COD tax' : ''}.
+            </>
+          ) : (
+            <>
+              Starting from our lowest delivery rate — enter your city above to see the exact
+              shipping &amp; tax.
+            </>
+          )}
         </p>
         {cityServiceable === false ? (
           <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
