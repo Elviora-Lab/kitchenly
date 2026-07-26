@@ -24,7 +24,11 @@ export const runtime = 'nodejs';
  *
  * Purchase is NOT relayed here — it's sent from `checkout.actions` where the
  * full order + shipping details give even richer matching. This endpoint covers
- * the mid-funnel events (`AddToCart`, `InitiateCheckout`, `AddPaymentInfo`).
+ * every other tracked event: the browsing signals that feed retargeting and
+ * Advantage+ (`ViewContent`, `Search`, `AddToWishlist`), the checkout funnel
+ * (`AddToCart`, `InitiateCheckout`, `AddPaymentInfo`), and the lead events
+ * (`Subscribe`, `Lead`, `Contact`). Browser-only events are the ones ad
+ * blockers and ITP erase, so anything worth optimising toward relays here.
  *
  * Match quality: for logged-in shoppers we enrich `user_data` with the phone,
  * name and city/country on file (see `loadMatchData`) on top of the email +
@@ -36,10 +40,25 @@ export const runtime = 'nodejs';
  */
 
 const bodySchema = z.object({
-  event: z.enum(['AddToCart', 'InitiateCheckout', 'AddPaymentInfo']),
+  event: z.enum([
+    'ViewContent',
+    'Search',
+    'AddToCart',
+    'AddToWishlist',
+    'InitiateCheckout',
+    'AddPaymentInfo',
+    'Subscribe',
+    'Lead',
+    'Contact',
+  ]),
   eventId: z.string().min(1).max(100),
   eventSourceUrl: z.string().url().optional(),
   customData: z.record(z.unknown()).optional(),
+  // Contact details the shopper just submitted (newsletter email, quiz email)
+  // for events that fire before there's a session. Hashed here, never stored —
+  // the session/profile still wins when both are present.
+  email: z.string().email().max(320).optional(),
+  phone: z.string().min(3).max(32).optional(),
 });
 
 /**
@@ -87,7 +106,10 @@ export const POST = createHandler(async (req) => {
   if (!isSameSiteRequest(req)) return apiNoContent();
 
   // Throttle per IP; drop silently (204) so a flood can't inflate CAPI events.
-  if (await isRateLimited({ key: `track:${clientIp(req)}`, limit: 30, windowSeconds: 60 })) {
+  // Sized for browsing, not just checkout: ViewContent and Search relay too, and
+  // carrier-grade NAT puts many real shoppers behind one address — too tight a
+  // limit silently discards legitimate conversions rather than blocking abuse.
+  if (await isRateLimited({ key: `track:${clientIp(req)}`, limit: 120, windowSeconds: 60 })) {
     return apiNoContent();
   }
 
@@ -109,8 +131,10 @@ export const POST = createHandler(async (req) => {
     eventId: body.eventId,
     eventSourceUrl: body.eventSourceUrl,
     userData: {
-      email: session?.email ?? null,
-      phone: match.phone ?? null,
+      // Session identity is authoritative; the submitted address is the
+      // fallback that makes anonymous Lead/Subscribe matchable at all.
+      email: session?.email ?? body.email ?? null,
+      phone: match.phone ?? body.phone ?? null,
       firstName: match.firstName ?? null,
       lastName: match.lastName ?? null,
       city: match.city ?? null,

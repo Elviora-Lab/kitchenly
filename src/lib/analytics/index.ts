@@ -38,17 +38,43 @@ function newEventId(): string {
  * server no-ops unless CAPI is configured. Production only — the browser pixel
  * is off in dev anyway, so there's nothing to dedupe against.
  */
+type CapiEventName =
+  | 'ViewContent'
+  | 'Search'
+  | 'AddToCart'
+  | 'AddToWishlist'
+  | 'InitiateCheckout'
+  | 'AddPaymentInfo'
+  | 'Subscribe'
+  | 'Lead'
+  | 'Contact';
+
+/**
+ * `identity` carries contact details the shopper just typed but that aren't in
+ * the session yet — a newsletter email, a quiz email. The server normalizes and
+ * hashes them (raw values never leave our own origin), which is what makes an
+ * anonymous Lead/Subscribe matchable at all. Logged-in shoppers are enriched
+ * server-side from the session, so most call sites pass nothing.
+ */
 function capiRelay(
-  event: 'AddToCart' | 'InitiateCheckout' | 'AddPaymentInfo',
+  event: CapiEventName,
   eventId: string,
   customData: unknown,
+  identity?: { email?: string | null; phone?: string | null },
 ) {
   if (!isProd || typeof window === 'undefined') return;
   try {
     void fetch('/api/v1/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event, eventId, eventSourceUrl: window.location.href, customData }),
+      body: JSON.stringify({
+        event,
+        eventId,
+        eventSourceUrl: window.location.href,
+        customData,
+        ...(identity?.email ? { email: identity.email } : {}),
+        ...(identity?.phone ? { phone: identity.phone } : {}),
+      }),
       keepalive: true,
     });
   } catch {
@@ -59,7 +85,18 @@ function capiRelay(
 export const analytics = {
   viewItem(p: { id: string; name: string; price: number; currency: string; brand?: string }) {
     logDev('view_item', p);
-    metaPixel.viewContent({ id: p.id, name: p.name, price: p.price, currency: p.currency });
+    const eventId = newEventId();
+    metaPixel.viewContent(
+      { id: p.id, name: p.name, price: p.price, currency: p.currency },
+      eventId,
+    );
+    capiRelay('ViewContent', eventId, {
+      value: p.price,
+      currency: p.currency,
+      content_ids: [p.id],
+      content_name: p.name,
+      content_type: 'product',
+    });
     ga.viewItem(p);
   },
 
@@ -165,7 +202,14 @@ export const analytics = {
 
   addToWishlist(p: { id: string; name?: string; price?: number; currency?: string }) {
     logDev('add_to_wishlist', p);
-    metaPixel.addToWishlist(p);
+    const eventId = newEventId();
+    metaPixel.addToWishlist(p, eventId);
+    capiRelay('AddToWishlist', eventId, {
+      ...(typeof p.price === 'number' ? { value: p.price, currency: p.currency ?? 'PKR' } : {}),
+      content_ids: [p.id],
+      content_type: 'product',
+      ...(p.name ? { content_name: p.name } : {}),
+    });
     ga.addToWishlist(p);
   },
 
@@ -259,7 +303,9 @@ export const analytics = {
 
   search(query: string) {
     logDev('search', query);
-    metaPixel.search(query);
+    const eventId = newEventId();
+    metaPixel.search(query, eventId);
+    capiRelay('Search', eventId, { search_string: query });
     ga.search(query);
   },
 
@@ -269,9 +315,14 @@ export const analytics = {
     ga.couponApplied(code);
   },
 
-  newsletterSignup() {
-    logDev('newsletter_signup');
-    metaPixel.subscribe();
+  /** `email` is the address just submitted — passed to CAPI so an otherwise
+   *  anonymous subscriber is still matchable (and Lookalike-seedable). */
+  newsletterSignup(p?: { email?: string | null }) {
+    logDev('newsletter_signup', p);
+    const eventId = newEventId();
+    if (p?.email) metaPixel.identify({ email: p.email });
+    metaPixel.subscribe(undefined, eventId);
+    capiRelay('Subscribe', eventId, undefined, { email: p?.email });
     ga.newsletterSignup();
   },
 
@@ -292,13 +343,19 @@ export const analytics = {
    *  person is retargetable / Lookalike-seedable. */
   lead(p?: { email?: string | null; contentName?: string }) {
     logDev('lead', p);
+    const eventId = newEventId();
     if (p?.email) metaPixel.identify({ email: p.email });
-    metaPixel.lead(p?.contentName ? { content_name: p.contentName } : undefined);
+    metaPixel.lead(p?.contentName ? { content_name: p.contentName } : undefined, eventId);
+    capiRelay('Lead', eventId, p?.contentName ? { content_name: p.contentName } : undefined, {
+      email: p?.email,
+    });
   },
 
   contact() {
     logDev('contact');
-    metaPixel.contact();
+    const eventId = newEventId();
+    metaPixel.contact(eventId);
+    capiRelay('Contact', eventId, undefined);
     ga.contact();
   },
 };

@@ -111,18 +111,21 @@ export function getPixelHealth(): PixelHealth {
  *  `analytics` facade (`@/lib/analytics`). `firstParty` names the log we can
  *  chart from; null means the event is pixel/GA-only (no server-side record). */
 const EVENT_COVERAGE: CoverageRow[] = [
-  { event: 'ViewContent', pixel: true, ga: true, capi: false, firstParty: 'product_view_logs' },
+  { event: 'ViewContent', pixel: true, ga: true, capi: true, firstParty: 'product_view_logs' },
+  // Custom (trackCustom) events aren't standard Meta events, so they have no
+  // CAPI twin — they exist to seed Custom Conversions in Ads Manager.
   { event: 'ViewCategory', pixel: true, ga: true, capi: false, firstParty: null },
-  { event: 'Search', pixel: true, ga: true, capi: false, firstParty: 'search_logs' },
+  { event: 'Search', pixel: true, ga: true, capi: true, firstParty: 'search_logs' },
   { event: 'AddToCart', pixel: true, ga: true, capi: true, firstParty: 'cart_event_logs' },
-  { event: 'AddToWishlist', pixel: true, ga: true, capi: false, firstParty: null },
+  { event: 'AddToWishlist', pixel: true, ga: true, capi: true, firstParty: null },
   { event: 'InitiateCheckout', pixel: true, ga: true, capi: true, firstParty: null },
   { event: 'AddPaymentInfo', pixel: true, ga: true, capi: true, firstParty: null },
   { event: 'Purchase', pixel: true, ga: true, capi: true, firstParty: 'orders' },
-  { event: 'Subscribe', pixel: true, ga: true, capi: false, firstParty: 'newsletter_subscribers' },
+  { event: 'Subscribe', pixel: true, ga: true, capi: true, firstParty: 'newsletter_subscribers' },
+  { event: 'Lead', pixel: true, ga: false, capi: true, firstParty: null },
   { event: 'CouponApplied', pixel: true, ga: true, capi: false, firstParty: null },
   { event: 'BackInStockNotify', pixel: true, ga: true, capi: false, firstParty: null },
-  { event: 'Contact', pixel: true, ga: true, capi: false, firstParty: null },
+  { event: 'Contact', pixel: true, ga: true, capi: true, firstParty: null },
   { event: 'SkincareAssistant', pixel: true, ga: true, capi: false, firstParty: null },
 ];
 

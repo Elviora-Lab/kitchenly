@@ -33,7 +33,11 @@ export function MetaPixel() {
 
   return (
     <>
-      <Script id="meta-pixel-base" strategy="lazyOnload">
+      {/* `afterInteractive`, not `lazyOnload`: lazyOnload waits for the full load
+          event, so a shopper who bounces or navigates quickly is never counted —
+          and every ViewContent/AddToCart before it lands is dropped, since the
+          helpers no-op until `fbq` exists. */}
+      <Script id="meta-pixel-base" strategy="afterInteractive">
         {`!function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};

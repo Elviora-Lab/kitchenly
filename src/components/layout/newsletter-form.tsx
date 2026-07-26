@@ -21,7 +21,7 @@ export function NewsletterForm() {
     try {
       const res = await subscribeNewsletter({ email: email.trim() });
       if (res.success) {
-        analytics.newsletterSignup();
+        analytics.newsletterSignup({ email: email.trim() });
         setDone(true);
         setEmail('');
       } else {

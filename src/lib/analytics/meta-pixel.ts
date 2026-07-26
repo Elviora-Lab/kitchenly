@@ -90,13 +90,20 @@ function moneyFields(
 export const metaPixel = {
   pageView: () => fbTrack('PageView'),
 
-  viewContent: (p: { id: string; name: string; price: number; currency: string }) =>
-    fbTrack('ViewContent', {
-      content_ids: [p.id],
-      content_name: p.name,
-      content_type: 'product',
-      ...moneyFields(p.price, p.currency),
-    }),
+  viewContent: (
+    p: { id: string; name: string; price: number; currency: string },
+    eventID?: string,
+  ) =>
+    fbTrack(
+      'ViewContent',
+      {
+        content_ids: [p.id],
+        content_name: p.name,
+        content_type: 'product',
+        ...moneyFields(p.price, p.currency),
+      },
+      eventID ? { eventID } : undefined,
+    ),
 
   viewCategory: (p: { slug: string; name: string }) =>
     fbTrackCustom('ViewCategory', { content_category: p.name, content_ids: [p.slug] }),
@@ -117,13 +124,20 @@ export const metaPixel = {
       eventID ? { eventID } : undefined,
     ),
 
-  addToWishlist: (p: { id: string; name?: string; price?: number; currency?: string }) =>
-    fbTrack('AddToWishlist', {
-      content_ids: [p.id],
-      content_type: 'product',
-      ...(p.name ? { content_name: p.name } : {}),
-      ...moneyFields(p.price, p.currency),
-    }),
+  addToWishlist: (
+    p: { id: string; name?: string; price?: number; currency?: string },
+    eventID?: string,
+  ) =>
+    fbTrack(
+      'AddToWishlist',
+      {
+        content_ids: [p.id],
+        content_type: 'product',
+        ...(p.name ? { content_name: p.name } : {}),
+        ...moneyFields(p.price, p.currency),
+      },
+      eventID ? { eventID } : undefined,
+    ),
 
   initiateCheckout: (p: { value: number; currency: string; items: number }, eventID?: string) =>
     fbTrack(
@@ -154,18 +168,19 @@ export const metaPixel = {
       { eventID: p.orderId },
     ),
 
-  subscribe: (p?: { value?: number; currency?: string }) =>
-    fbTrack('Subscribe', moneyFields(p?.value, p?.currency)),
+  subscribe: (p?: { value?: number; currency?: string }, eventID?: string) =>
+    fbTrack('Subscribe', moneyFields(p?.value, p?.currency), eventID ? { eventID } : undefined),
 
   /** Attach Advanced Matching (raw email/phone) to lift Event Match Quality. */
   identify: (user: { email?: string | null; phone?: string | null }) => fbIdentify(user),
 
-  contact: () => fbTrack('Contact'),
+  contact: (eventID?: string) => fbTrack('Contact', undefined, eventID ? { eventID } : undefined),
 
-  lead: (p?: { content_name?: string }) =>
-    fbTrack('Lead', p ? { content_name: p.content_name } : {}),
+  lead: (p?: { content_name?: string }, eventID?: string) =>
+    fbTrack('Lead', p ? { content_name: p.content_name } : {}, eventID ? { eventID } : undefined),
 
-  search: (query: string) => fbTrack('Search', { search_string: query }),
+  search: (query: string, eventID?: string) =>
+    fbTrack('Search', { search_string: query }, eventID ? { eventID } : undefined),
 
   // Store-specific custom events (build Custom Conversions on these in Ads Manager).
   couponApplied: (code: string) => fbTrackCustom('CouponApplied', { coupon: code }),
