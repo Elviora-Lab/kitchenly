@@ -18,7 +18,9 @@ import { bulkUpdateOrderStatus } from '@/server/actions/admin/orders.actions';
 type Row = {
   id: string;
   orderNumber: string;
+  customerName: string | null;
   customerEmail: string | null;
+  customerPhone: string | null;
   orderStatus: OrderStatus;
   paymentStatus: string;
   itemCount: number;
@@ -179,7 +181,18 @@ export function OrdersTable({ rows }: { rows: Row[] }) {
                   />
                 </td>
                 <td className="px-4 py-3 font-mono text-xs">{o.orderNumber}</td>
-                <td className="px-4 py-3">{o.customerEmail ?? '—'}</td>
+                <td className="px-4 py-3">
+                  {o.customerName || o.customerEmail || o.customerPhone ? (
+                    <>
+                      {o.customerName ? <div className="font-medium">{o.customerName}</div> : null}
+                      <div className="text-xs text-muted-foreground">
+                        {o.customerEmail ?? o.customerPhone}
+                      </div>
+                    </>
+                  ) : (
+                    '—'
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <Badge variant="muted">{o.orderStatus}</Badge>
                 </td>

@@ -226,7 +226,42 @@ export const adminOrdersRepo = {
             role: true,
           },
         },
-        items: true,
+        items: {
+          include: {
+            // The ordered variant, for the exact shade/size/fragrance and its
+            // own photo. `variantName` on the item is only a text snapshot, so
+            // this is what lets the admin see WHICH shade actually shipped.
+            variant: {
+              select: {
+                id: true,
+                sku: true,
+                size: true,
+                shade: true,
+                fragrance: true,
+                images: {
+                  orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                  take: 1,
+                  select: { imageUrl: true, altText: true },
+                },
+              },
+            },
+            product: {
+              select: {
+                slug: true,
+                // variantId: null ⇒ generic product shots only. A variant-tagged
+                // image here would be some OTHER shade's photo, and showing the
+                // wrong shade to whoever is packing the box is worse than
+                // showing no photo at all.
+                images: {
+                  where: { variantId: null },
+                  orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                  take: 1,
+                  select: { imageUrl: true, altText: true },
+                },
+              },
+            },
+          },
+        },
         payments: true,
         shipments: true,
         statusHistory: { orderBy: { createdAt: 'desc' } },

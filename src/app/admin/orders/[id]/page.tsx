@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { CourierCard } from './courier-card';
+import { CustomerCard } from './customer-card';
+import { OrderItems } from './order-items';
 import { PaymentActions } from './payment-actions';
 import { StatusUpdater } from './status-updater';
 
@@ -49,80 +51,52 @@ export default async function AdminOrderDetailPage({
             <CardHeader>
               <CardTitle>Items</CardTitle>
             </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-sm">
-                <thead className="text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                  <tr>
-                    <th className="pb-2">Product</th>
-                    <th className="pb-2">Qty</th>
-                    <th className="pb-2">Unit</th>
-                    <th className="pb-2 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {order.items.map((item) => (
-                    <tr key={item.id} className="border-t border-border/60">
-                      <td className="py-3">
-                        <div>{item.productName}</div>
-                        {item.variantName ? (
-                          <div className="text-xs text-muted-foreground">{item.variantName}</div>
-                        ) : null}
-                      </td>
-                      <td className="py-3">{item.quantity}</td>
-                      <td className="py-3">
-                        {formatMoney(Number(item.unitPrice), order.currency)}
-                      </td>
-                      <td className="py-3 text-right">
-                        {formatMoney(Number(item.totalPrice), order.currency)}
-                      </td>
-                    </tr>
-                  ))}
-                  <tr className="border-t border-border">
-                    <td colSpan={3} className="pt-3 text-right text-sm text-muted-foreground">
-                      Subtotal
-                    </td>
-                    <td className="pt-3 text-right">
-                      {formatMoney(Number(order.subtotal), order.currency)}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td colSpan={3} className="text-right text-sm text-muted-foreground">
-                      Shipping
-                    </td>
-                    <td className="text-right">
-                      {formatMoney(Number(order.shippingFee), order.currency)}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td colSpan={3} className="text-right text-sm text-muted-foreground">
-                      Tax
-                    </td>
-                    <td className="text-right">
-                      {formatMoney(Number(order.taxAmount), order.currency)}
-                    </td>
-                  </tr>
-                  {Number(order.discountAmount) > 0 && (
-                    <tr>
-                      <td colSpan={3} className="text-right text-sm text-muted-foreground">
-                        {order.discountLabel ?? 'Discount'}
-                      </td>
-                      <td className="text-right">
-                        −{formatMoney(Number(order.discountAmount), order.currency)}
-                      </td>
-                    </tr>
-                  )}
-                  <tr className="border-t border-border">
-                    <td colSpan={3} className="pt-2 text-right font-medium">
-                      Total
-                    </td>
-                    <td className="pt-2 text-right font-medium">
-                      {formatMoney(Number(order.totalAmount), order.currency)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <CardContent>
+              <OrderItems
+                currency={order.currency}
+                subtotal={Number(order.subtotal)}
+                shippingFee={Number(order.shippingFee)}
+                taxAmount={Number(order.taxAmount)}
+                discountAmount={Number(order.discountAmount)}
+                discountLabel={order.discountLabel}
+                totalAmount={Number(order.totalAmount)}
+                items={order.items.map((item) => ({
+                  id: item.id,
+                  productName: item.productName,
+                  variantName: item.variantName,
+                  quantity: item.quantity,
+                  unitPrice: Number(item.unitPrice),
+                  totalPrice: Number(item.totalPrice),
+                  product: item.product
+                    ? {
+                        slug: item.product.slug,
+                        imageUrl: item.product.images[0]?.imageUrl ?? null,
+                      }
+                    : null,
+                  variant: item.variant
+                    ? {
+                        sku: item.variant.sku,
+                        size: item.variant.size,
+                        shade: item.variant.shade,
+                        fragrance: item.variant.fragrance,
+                        imageUrl: item.variant.images[0]?.imageUrl ?? null,
+                      }
+                    : null,
+                }))}
+              />
             </CardContent>
           </Card>
+
+          {order.notes ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Customer note</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="whitespace-pre-wrap text-sm">{order.notes}</p>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>
@@ -180,19 +154,32 @@ export default async function AdminOrderDetailPage({
 
           <Card>
             <CardHeader>
-              <CardTitle>Customer</CardTitle>
+              <CardTitle>Customer &amp; delivery</CardTitle>
             </CardHeader>
-            <CardContent className="text-sm">
-              {order.user ? (
-                <>
-                  <div className="font-medium">
-                    {order.user.firstName ?? ''} {order.user.lastName ?? ''}
-                  </div>
-                  <div className="text-muted-foreground">{order.user.email}</div>
-                </>
-              ) : (
-                <span className="text-muted-foreground">Guest checkout</span>
-              )}
+            <CardContent>
+              <CustomerCard
+                account={
+                  order.user
+                    ? {
+                        id: order.user.id,
+                        email: order.user.email,
+                        firstName: order.user.firstName,
+                        lastName: order.user.lastName,
+                      }
+                    : null
+                }
+                shipping={{
+                  fullName: order.shippingFullName,
+                  email: order.shippingEmail,
+                  phone: order.shippingPhone,
+                  addressLine1: order.shippingAddressLine1,
+                  addressLine2: order.shippingAddressLine2,
+                  area: order.shippingArea,
+                  city: order.shippingCity,
+                  postalCode: order.shippingPostalCode,
+                  country: order.shippingCountry,
+                }}
+              />
             </CardContent>
           </Card>
 
@@ -225,6 +212,34 @@ export default async function AdminOrderDetailPage({
               ) : null}
             </CardContent>
           </Card>
+
+          {order.utmSource || order.utmMedium || order.utmCampaign ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Came from</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-1 text-sm">
+                {order.utmSource ? (
+                  <div>
+                    <span className="text-muted-foreground">Source </span>
+                    {order.utmSource}
+                  </div>
+                ) : null}
+                {order.utmMedium ? (
+                  <div>
+                    <span className="text-muted-foreground">Medium </span>
+                    {order.utmMedium}
+                  </div>
+                ) : null}
+                {order.utmCampaign ? (
+                  <div>
+                    <span className="text-muted-foreground">Campaign </span>
+                    {order.utmCampaign}
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       </div>
     </div>

@@ -31,7 +31,14 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
   const rows = items.map((o) => ({
     id: o.id,
     orderNumber: o.orderNumber,
-    customerEmail: o.user?.email ?? null,
+    // Guest checkouts have no linked account, so fall back to the order's own
+    // shipping snapshot — otherwise every guest order showed a bare "—" and was
+    // unidentifiable without opening it.
+    customerName:
+      o.shippingFullName ??
+      ([o.user?.firstName, o.user?.lastName].filter(Boolean).join(' ').trim() || null),
+    customerEmail: o.user?.email ?? o.shippingEmail ?? null,
+    customerPhone: o.shippingPhone ?? null,
     orderStatus: o.orderStatus,
     paymentStatus: o.paymentStatus,
     itemCount: o._count.items,
