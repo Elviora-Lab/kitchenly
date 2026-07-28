@@ -11,7 +11,9 @@ export const revalidate = 3600;
 const STATIC_PATHS: Array<[string, MetadataRoute.Sitemap[number]['changeFrequency'], number]> = [
   ['/', 'weekly', 1.0],
   ['/products', 'daily', 0.9],
-  ['/blog', 'weekly', 0.7],
+  // NOTE: `/blog` is deliberately NOT here — it is appended below only when at
+  // least one post is actually published. Submitting an empty index invites a
+  // "Crawled – currently not indexed" verdict and burns crawl budget.
   ['/categories', 'weekly', 0.6],
   ['/about', 'monthly', 0.5],
   ['/contact', 'monthly', 0.4],
@@ -69,12 +71,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  const categoryRoutes: MetadataRoute.Sitemap = categories.map((c) => ({
-    url: `${base}/categories/${c.slug}`,
-    lastModified: now,
-    changeFrequency: 'weekly',
-    priority: 0.6,
-  }));
+  // "uncategorized" is the fallback bucket for products with no real category.
+  // It is deliberately hidden from the storefront nav, so asking Google to
+  // index it would surface a page we never link to ourselves.
+  const categoryRoutes: MetadataRoute.Sitemap = categories
+    .filter((c) => c.slug !== 'uncategorized')
+    .map((c) => ({
+      url: `${base}/categories/${c.slug}`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    }));
 
   const brandRoutes: MetadataRoute.Sitemap = brands.map((b) => ({
     url: `${base}/brands/${b.slug}`,
@@ -90,5 +97,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...staticRoutes, ...productRoutes, ...categoryRoutes, ...brandRoutes, ...postRoutes];
+  // Only advertise the blog index once it has something on it.
+  const blogIndexRoute: MetadataRoute.Sitemap = postRoutes.length
+    ? [{ url: `${base}/blog`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 }]
+    : [];
+
+  return [
+    ...staticRoutes,
+    ...blogIndexRoute,
+    ...productRoutes,
+    ...categoryRoutes,
+    ...brandRoutes,
+    ...postRoutes,
+  ];
 }

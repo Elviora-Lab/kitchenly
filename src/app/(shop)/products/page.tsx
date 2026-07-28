@@ -1,3 +1,5 @@
+import type { Metadata } from 'next';
+
 import { breadcrumbJsonLd, itemListJsonLd } from '@/lib/seo/json-ld';
 import { JsonLd } from '@/lib/seo/json-ld-component';
 import { buildMetadata } from '@/lib/seo/metadata';
@@ -13,12 +15,28 @@ import { type ProductListSort } from '@/server/repositories/products.repo';
 import { brandsService } from '@/server/services/brands.service';
 import { productsService } from '@/server/services/products.service';
 
-export const metadata = buildMetadata({
-  title: 'All products',
-  description:
-    'Browse the full Kitchenly range — kitchen gadgets, storage, cleaning, and household essentials.',
-  path: '/products',
-});
+const LIST_DESCRIPTION =
+  'Browse the full Kitchenly range — kitchen gadgets, storage, cleaning, and household essentials.';
+
+/**
+ * Per-page canonical. Page 2+ points at itself rather than collapsing onto
+ * page 1, so Google keeps crawling deeper listings instead of treating them as
+ * duplicates of the first page. Sort/brand params are deliberately excluded —
+ * those variants SHOULD still fold onto the clean URL.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const sp = await searchParams;
+  const page = Math.max(1, Number(str(sp.page)) || 1);
+  return buildMetadata({
+    title: page > 1 ? `All products — page ${page}` : 'All products',
+    description: LIST_DESCRIPTION,
+    path: page > 1 ? `/products?page=${page}` : '/products',
+  });
+}
 
 const SORTS: ProductListSort[] = ['newest', 'popular', 'rating', 'price-asc', 'price-desc'];
 const str = (v: string | string[] | undefined) => (typeof v === 'string' ? v : undefined);

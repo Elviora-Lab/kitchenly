@@ -8,11 +8,17 @@ import { Button } from '@/components/ui/button';
 
 import { SkinQuiz } from './skin-quiz';
 
+// Carried over from the beauty catalog this storefront was forked from. The
+// route is orphaned (nothing links to it, it is not in the sitemap) but was
+// still indexable — a "skincare"/"beauty" URL on a kitchenware domain dilutes
+// the site's topical relevance. Kept reachable for the existing quiz flow,
+// excluded from search.
 export const metadata = buildMetadata({
   title: 'Beauty Concierge',
   description:
     'Get one-to-one product guidance from the Kitchenly team — tell us about your home and we will point you to the right tools.',
   path: '/ai-skincare-assistant',
+  noIndex: true,
 });
 
 export default function BeautyConciergePage() {

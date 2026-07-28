@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { Cormorant_Garamond, Inter } from 'next/font/google';
 
+import { siteConfig } from '@/config/site';
+
 import { AppProviders } from '@/providers/app-providers';
 
 import { organizationJsonLd, websiteJsonLd } from '@/lib/seo/json-ld';
@@ -44,7 +46,13 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${serif.variable} ${sans.variable}`}>
+    <html
+      // `en-PK`, matching the OG locale and the store's single market, rather
+      // than a bare `en` — the regional variant is the more precise signal.
+      lang={siteConfig.locale}
+      suppressHydrationWarning
+      className={`${serif.variable} ${sans.variable}`}
+    >
       <head>
         {/* Warm the connection to the product-image CDN (the LCP image origin)
             and the free image-resize proxy, so the hero image isn't delayed by

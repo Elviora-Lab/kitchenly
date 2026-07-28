@@ -38,16 +38,26 @@ function prettify(slug: string) {
     .join(' ');
 }
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: SearchParams;
+}): Promise<Metadata> {
   const { slug } = await params;
+  const sp = await searchParams;
   const category = await categoriesService.getBySlug(slug);
   const name = category?.name ?? prettify(slug);
+  // Self-referencing canonical per page (see /products for the rationale);
+  // sort/brand variants still fold onto the clean category URL.
+  const page = Math.max(1, Number(str(sp.page)) || 1);
   return buildMetadata({
-    title: name,
+    title: page > 1 ? `${name} — page ${page}` : name,
     description:
       category?.description ??
       `Shop ${name} at Kitchenly — practical, quality-checked essentials for your home.`,
-    path: `/categories/${slug}`,
+    path: page > 1 ? `/categories/${slug}?page=${page}` : `/categories/${slug}`,
   });
 }
 
