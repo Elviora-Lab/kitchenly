@@ -128,6 +128,31 @@ if (!publicParsed.success) {
 
 export const publicEnv = publicParsed.data;
 
+// NEXT_PUBLIC_SITE_URL is inlined at build time and is the single source of
+// every canonical, OG url, sitemap entry, robots host and JSON-LD `url`. Its
+// zod default means an UNSET var builds cleanly against `http://localhost:3000`
+// — which silently de-indexes the whole site. Fail the build instead.
+//
+// VERCEL_ENV is checked alongside NEXT_PUBLIC_ENVIRONMENT because that var has
+// a default too: if both are unset on Vercel this would otherwise read as
+// "development" and wave the localhost URL straight through to production.
+// Server-only (`window` guard) so this never ships in the client bundle.
+if (typeof window === 'undefined') {
+  const isProd =
+    process.env.VERCEL_ENV === 'production' || publicEnv.NEXT_PUBLIC_ENVIRONMENT === 'production';
+  if (
+    isProd &&
+    /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:|\/|$)/.test(publicEnv.NEXT_PUBLIC_SITE_URL)
+  ) {
+    throw new Error(
+      `NEXT_PUBLIC_SITE_URL is "${publicEnv.NEXT_PUBLIC_SITE_URL}" in a production build. ` +
+        'Set it to the real public origin (https://kitchenly.com.pk) in the Vercel project ' +
+        'environment variables — it is baked into every canonical, Open Graph url, sitemap ' +
+        'entry and structured-data url at build time.',
+    );
+  }
+}
+
 // Server env — only accessible on the server.
 export const serverEnv = (() => {
   if (typeof window !== 'undefined') {
