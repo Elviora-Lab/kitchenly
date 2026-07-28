@@ -51,7 +51,7 @@ export function ProductGrid({
   const seenIds = useRef<Set<string>>(new Set());
   useEffect(() => {
     products?.forEach((p) => seenIds.current.add(p.id));
-  });
+  }, [products]);
 
   // GA4 view_item_list — fire once when the list first has products. Keyed on
   // the id set so a filter/sort that swaps the products re-reports the new list.
@@ -132,7 +132,14 @@ export function ProductGrid({
       {products.map((p, i) => (
         <motion.div
           key={p.id}
-          variants={i < STAGGER_LIMIT && !seenIds.current.has(p.id) ? item : undefined}
+          // Every card keeps `item` so the parent's "show" always resolves to a
+          // visible state. Dropping `variants` for seen cards used to strand any
+          // card whose entrance was still in flight at `opacity: 0` — it kept the
+          // grid slot but never painted. `initial` is read only at mount, so a
+          // later re-render can no longer interrupt an entrance; `false` means
+          // "render straight at `show`", i.e. skip the entrance animation.
+          variants={item}
+          initial={i < STAGGER_LIMIT && !seenIds.current.has(p.id) ? undefined : false}
         >
           <ProductCard
             product={p}
