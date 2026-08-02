@@ -4,6 +4,9 @@ import { type OrderStatus, type Prisma, type UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/db';
 
+import { inventoryRepo } from '@/server/repositories/inventory.repo';
+import { inventoryService } from '@/server/services/inventory.service';
+
 /**
  * Admin-side repositories. These intentionally ignore `is_active` /
  * `is_approved` filters so operators see the full state of the catalog.
@@ -36,6 +39,10 @@ const sumRevenue = async (extra?: Prisma.OrderWhereInput) => {
 
 export const adminDashboardRepo = {
   async kpis() {
+    // Each variant's own reorder point wins, with the configurable shop-wide
+    // default behind it — see `inventoryService.lowStockThreshold`.
+    const threshold = await inventoryService.lowStockThreshold();
+
     const [
       revenue,
       revenueToday,
@@ -55,7 +62,7 @@ export const adminDashboardRepo = {
       prisma.product.count(),
       prisma.user.count({ where: { role: 'CUSTOMER' } }),
       prisma.review.count({ where: { isApproved: false } }),
-      prisma.productVariant.count({ where: { isActive: true, stockQuantity: { lt: 10 } } }),
+      inventoryRepo.lowStockCount(threshold),
     ]);
 
     return {
@@ -167,15 +174,6 @@ export const adminProductsRepo = {
 
   delete(id: string) {
     return prisma.product.delete({ where: { id } });
-  },
-
-  updateVariantStock(variantId: string, stockQuantity: number) {
-    return prisma.productVariant.update({
-      where: { id: variantId },
-      data: { stockQuantity },
-      // Include the parent slug so callers can invalidate the product cache.
-      include: { product: { select: { slug: true } } },
-    });
   },
 
   async bulkSetActive(ids: string[], isActive: boolean) {

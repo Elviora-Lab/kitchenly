@@ -12,6 +12,7 @@ import { cartRepo } from '@/server/repositories/cart.repo';
 import { ordersRepo } from '@/server/repositories/orders.repo';
 import { couponsService } from '@/server/services/coupons.service';
 import { flashSaleService } from '@/server/services/flash-sale.service';
+import { inventoryService } from '@/server/services/inventory.service';
 import { promotionsService } from '@/server/services/promotions.service';
 
 const orderNumberAlphabet = customAlphabet('0123456789ABCDEFGHJKMNPQRSTVWXYZ', 8);
@@ -212,19 +213,30 @@ export const ordersService = {
           },
         });
 
-        // Decrement stock for each variant atomically. The `stockQuantity >=
-        // quantity` guard is part of the WHERE clause, so two concurrent
-        // checkouts of the last unit cannot both succeed — the loser's
-        // updateMany affects 0 rows and we roll the whole transaction back.
-        for (const item of cart.items) {
-          if (item.variantId) {
-            const { count } = await tx.productVariant.updateMany({
-              where: { id: item.variantId, stockQuantity: { gte: item.quantity } },
-              data: { stockQuantity: { decrement: item.quantity } },
-            });
-            if (count === 0) {
-              throw new BadRequestError(`Insufficient stock for ${item.product.name}`);
-            }
+        // Decrement stock through the ledger, which guards against going
+        // negative inside the UPDATE itself — two concurrent checkouts of the
+        // last unit cannot both succeed, and the loser rolls the whole
+        // transaction back. Lines are taken in variant-id order so concurrent
+        // checkouts sharing variants always lock them in the same sequence and
+        // cannot deadlock against each other.
+        const stockLines = cart.items
+          .flatMap((item) => (item.variantId ? [{ ...item, variantId: item.variantId }] : []))
+          .sort((a, b) => a.variantId.localeCompare(b.variantId));
+
+        for (const item of stockLines) {
+          const balance = await inventoryService.applyDelta(
+            {
+              variantId: item.variantId,
+              delta: -item.quantity,
+              reason: 'SALE',
+              refType: 'ORDER',
+              refId: order.id,
+              createdBy: opts.userId,
+            },
+            tx,
+          );
+          if (balance === null) {
+            throw new BadRequestError(`Insufficient stock for ${item.product.name}`);
           }
         }
 

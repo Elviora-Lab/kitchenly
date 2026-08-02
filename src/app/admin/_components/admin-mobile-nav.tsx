@@ -2,16 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { LogOut, Menu } from 'lucide-react';
-
-import { adminNav } from '@/config/navigation';
-
-import { cn } from '@/lib/cn';
 
 import { BrandLogo } from '@/components/brand/brand-logo';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
+import { AdminNav } from '@/app/admin/_components/admin-nav';
 import { logoutAction } from '@/server/actions/auth.actions';
 
 /**
@@ -21,7 +17,6 @@ import { logoutAction } from '@/server/actions/auth.actions';
  */
 export function AdminMobileNav({ displayName, role }: { displayName: string; role: string }) {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
 
   return (
     <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-card px-4 py-3 lg:hidden">
@@ -56,28 +51,7 @@ export function AdminMobileNav({ displayName, role }: { displayName: string; rol
             <div className="text-xs text-muted-foreground">{role}</div>
           </div>
 
-          <nav className="-mx-1 flex flex-1 flex-col gap-1 overflow-y-auto px-1">
-            {adminNav.map((item) => {
-              const active =
-                pathname === item.href ||
-                (item.href !== '/admin' && pathname.startsWith(`${item.href}`));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    'rounded-md px-3 py-2 text-sm transition-colors',
-                    active
-                      ? 'bg-muted font-medium text-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                  )}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+          <AdminNav onNavigate={() => setOpen(false)} />
 
           <div className="mt-auto flex flex-col gap-2 border-t border-border pt-3">
             <Link

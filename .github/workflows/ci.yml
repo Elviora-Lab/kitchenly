@@ -72,11 +72,13 @@ jobs:
       - name: Format check
         run: npm run format:check
 
-      - name: Test
-        run: npm test
-
+      # Ahead of the tests: the database-backed suites (tests/integration) skip
+      # themselves unless the schema is already applied.
       - name: Migrate CI database
         run: npx prisma migrate deploy
+
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build

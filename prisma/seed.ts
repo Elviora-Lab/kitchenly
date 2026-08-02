@@ -21,6 +21,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 import { CATEGORY_TREE } from '../src/config/taxonomy';
+import { reconcileStockLedger } from './stock-ledger';
 
 const prisma = new PrismaClient();
 
@@ -723,7 +724,14 @@ async function main() {
     });
   }
 
-  console.log(`Seed complete: ${PRODUCTS.length} products across 4 brands.`);
+  // Seeded variants get their stock written straight onto the column, so give
+  // the ledger its opening balances — otherwise every fresh database reports
+  // drift the moment it starts.
+  const reconciled = await reconcileStockLedger(prisma);
+
+  console.log(
+    `Seed complete: ${PRODUCTS.length} products across 4 brands, ${reconciled} opening stock balances.`,
+  );
 }
 
 main()

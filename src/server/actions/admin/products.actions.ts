@@ -12,6 +12,7 @@ import { withAction } from '../_with-action';
 import { requireAdmin } from '@/server/auth/guards';
 import { BadRequestError, NotFoundError } from '@/server/http/errors';
 import { adminProductsRepo } from '@/server/repositories/admin.repo';
+import { inventoryService } from '@/server/services/inventory.service';
 import { productsService } from '@/server/services/products.service';
 import { idInput } from '@/server/validators/admin-common.schema';
 
@@ -211,15 +212,36 @@ const variantBody = z.object({
 });
 
 export const createVariant = withAction(async (input: z.infer<typeof variantBody>) => {
-  await requireAdmin();
-  const { productId, ...data } = variantBody.parse(input);
+  const session = await requireAdmin();
+  const { productId, stockQuantity, ...data } = variantBody.parse(input);
   const product = await prisma.product.findUnique({
     where: { id: productId },
     select: { slug: true },
   });
   if (!product) throw new NotFoundError('Product not found');
 
-  const variant = await prisma.productVariant.create({ data: { productId, ...data } });
+  const variant = await prisma.$transaction(async (tx) => {
+    // Created empty, then credited through the ledger — so even a variant's
+    // very first units have a movement behind them rather than appearing from
+    // nowhere.
+    const created = await tx.productVariant.create({
+      data: { productId, ...data, stockQuantity: 0 },
+    });
+    if (stockQuantity > 0) {
+      await inventoryService.applyDelta(
+        {
+          variantId: created.id,
+          delta: stockQuantity,
+          reason: 'OPENING_BALANCE',
+          refType: 'MANUAL',
+          createdBy: session.sub,
+        },
+        tx,
+      );
+    }
+    return created;
+  });
+
   await productsService.invalidate(product.slug);
   revalidatePath(`/admin/products/${productId}`);
   revalidatePath(`/products/${product.slug}`);
@@ -230,15 +252,36 @@ const variantUpdateBody = variantBody.omit({ productId: true }).partial();
 
 export const updateVariant = withAction(
   async (input: { id: string } & z.infer<typeof variantUpdateBody>) => {
-    await requireAdmin();
+    const session = await requireAdmin();
     const { id: rawId, ...rest } = input;
     const id = z.string().uuid().parse(rawId);
-    const data = variantUpdateBody.parse(rest);
-    const variant = await prisma.productVariant.update({
-      where: { id },
-      data,
-      include: { product: { select: { slug: true } } },
+    const { stockQuantity, ...data } = variantUpdateBody.parse(rest);
+
+    const variant = await prisma.$transaction(async (tx) => {
+      const updated = await tx.productVariant.update({
+        where: { id },
+        data,
+        include: { product: { select: { slug: true } } },
+      });
+      // The form submits an absolute count; the ledger turns it into a signed
+      // adjustment against the locked current value, so a sale landing
+      // mid-edit is not quietly reversed.
+      if (stockQuantity !== undefined) {
+        await inventoryService.setLevel(
+          {
+            variantId: id,
+            quantity: stockQuantity,
+            reason: 'ADJUSTMENT',
+            refType: 'MANUAL',
+            createdBy: session.sub,
+            note: 'Set from the admin product form',
+          },
+          tx,
+        );
+      }
+      return updated;
     });
+
     await productsService.invalidate(variant.product.slug);
     revalidatePath(`/admin/products/${variant.productId}`);
     revalidatePath(`/products/${variant.product.slug}`);
@@ -311,7 +354,7 @@ const importRow = z.object({
  * fatal.
  */
 export const bulkImportProducts = withAction(async (input: { rows: unknown[] }) => {
-  await requireAdmin();
+  const session = await requireAdmin();
   const rows = z.array(importRow).min(1).max(1000).parse(input.rows);
 
   let created = 0;
@@ -390,15 +433,26 @@ export const bulkImportProducts = withAction(async (input: { rows: unknown[] }) 
         const product = await prisma.product.create({ data: { ...common, slug, sku } });
         productId = product.id;
         await syncPrimaryCategory(productId, null, categoryId);
-        // A default variant so the product is immediately sellable.
-        await prisma.productVariant.create({
+        // A default variant so the product is immediately sellable. Its
+        // starting stock is credited through the ledger rather than written
+        // straight onto the column, so imported units are traceable too.
+        const variant = await prisma.productVariant.create({
           data: {
             productId,
             sku: `${sku}-V`.slice(0, 80),
             price: common.price,
-            stockQuantity: row.stock ?? 0,
+            stockQuantity: 0,
           },
         });
+        if (row.stock) {
+          await inventoryService.applyDelta({
+            variantId: variant.id,
+            delta: row.stock,
+            reason: 'IMPORT_SYNC',
+            refType: 'IMPORT',
+            createdBy: session.sub,
+          });
+        }
         created++;
       }
 
@@ -496,7 +550,7 @@ function plainText(html: string): string {
  */
 export const importShopifyProducts = withAction(
   async (input: z.input<typeof shopifyImportBody>) => {
-    await requireAdmin();
+    const session = await requireAdmin();
     const { products, deactivateOthers } = shopifyImportBody.parse(input);
 
     let created = 0;
@@ -577,7 +631,6 @@ export const importShopifyProducts = withAction(
               productId,
               sku,
               price: new Prisma.Decimal(v.price),
-              stockQuantity: v.stock ?? 0,
               size: v.size || null,
               shade: v.shade || null,
               fragrance: v.fragrance || null,
@@ -590,8 +643,25 @@ export const importShopifyProducts = withAction(
             if (found && found.productId !== productId) {
               throw new BadRequestError(`SKU ${sku} already belongs to another product`);
             }
-            if (found) await tx.productVariant.update({ where: { id: found.id }, data });
-            else await tx.productVariant.create({ data });
+
+            // The file's inventory column is an absolute count, so it goes
+            // through the ledger as an adjustment against what's on hand —
+            // re-importing an unchanged file writes no movement at all.
+            const variantId = found
+              ? (await tx.productVariant.update({ where: { id: found.id }, data })).id
+              : (await tx.productVariant.create({ data: { ...data, stockQuantity: 0 } })).id;
+
+            await inventoryService.setLevel(
+              {
+                variantId,
+                quantity: v.stock ?? 0,
+                reason: 'IMPORT_SYNC',
+                refType: 'IMPORT',
+                createdBy: session.sub,
+                note: `Shopify import — ${sku}`,
+              },
+              tx,
+            );
           }
           await tx.productVariant.updateMany({
             where: { productId, sku: { notIn: fileSkus } },

@@ -18,6 +18,8 @@ import { join } from 'node:path';
 
 import { Prisma, PrismaClient } from '@prisma/client';
 
+import { reconcileStockLedger } from './stock-ledger';
+
 const prisma = new PrismaClient();
 
 // ---------------------------------------------------------------------------
@@ -478,9 +480,14 @@ async function main() {
     }
   }
 
+  // Imported variants get their stock written straight onto the column; give
+  // the ledger matching opening balances so the two stay reconcilable.
+  const reconciled = await reconcileStockLedger(prisma);
+
   console.log(
     `Imported: ${pCount} products, ${cCount} category links, ${vCount} variants, ` +
-      `${iCount} images, ${rCount} reviews (across ${userIdByKey.size} synthetic reviewers)`,
+      `${iCount} images, ${rCount} reviews (across ${userIdByKey.size} synthetic reviewers), ` +
+      `${reconciled} opening stock balances`,
   );
   console.log(
     'Note: products are (re)assigned to top-level categories — run ' +

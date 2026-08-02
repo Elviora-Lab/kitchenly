@@ -19,7 +19,6 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet';
 
 import { RewardsLadder } from '@/features/promotions/components/rewards-ladder';

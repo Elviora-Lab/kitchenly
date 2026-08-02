@@ -1,13 +1,10 @@
 import Link from 'next/link';
 import { LogOut } from 'lucide-react';
 
-import { adminNav } from '@/config/navigation';
-
-import { cn } from '@/lib/cn';
-
 import { BrandLogo } from '@/components/brand/brand-logo';
 
 import { AdminMobileNav } from '@/app/admin/_components/admin-mobile-nav';
+import { AdminNav } from '@/app/admin/_components/admin-nav';
 import { logoutAction } from '@/server/actions/auth.actions';
 import { requireAdmin } from '@/server/auth/guards';
 import { usersRepo } from '@/server/repositories/users.repo';
@@ -39,22 +36,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <div className="text-xs text-muted-foreground">{session.role}</div>
         </div>
 
-        <nav className="flex flex-col gap-1">
-          {adminNav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'rounded-md px-3 py-2 text-sm transition-colors',
-                'text-muted-foreground hover:bg-muted hover:text-foreground',
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <AdminNav />
 
-        <div className="mt-auto flex flex-col gap-2">
+        <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
           <Link
             href="/"
             className="text-xs uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground"

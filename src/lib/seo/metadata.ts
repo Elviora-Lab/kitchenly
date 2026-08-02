@@ -65,4 +65,9 @@ export function buildMetadata({
   };
 }
 
-export const defaultMetadata: Metadata = buildMetadata();
+export const defaultMetadata: Metadata = {
+  ...buildMetadata(),
+  verification: {
+    google: 'ODwySYaXf8h76ufWE4IN7ii1JYDDJ-Y_UJgda8r2Bhs',
+  },
+};

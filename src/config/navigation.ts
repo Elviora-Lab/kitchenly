@@ -80,22 +80,65 @@ export const accountNav: NavItem[] = [
   { label: 'Notifications', href: '/account/notifications' },
 ];
 
-export const adminNav: NavItem[] = [
-  { label: 'Dashboard', href: '/admin' },
-  { label: 'Products', href: '/admin/products' },
-  { label: 'Categories', href: '/admin/categories' },
-  { label: 'Brands', href: '/admin/brands' },
-  { label: 'Orders', href: '/admin/orders' },
-  { label: 'Returns', href: '/admin/returns' },
-  { label: 'Reviews', href: '/admin/reviews' },
-  { label: 'Users', href: '/admin/users' },
-  { label: 'Coupons', href: '/admin/coupons' },
-  { label: 'Flash Sale', href: '/admin/flash-sale' },
-  { label: 'Analytics', href: '/admin/analytics' },
-  { label: 'Audience', href: '/admin/audience' },
-  { label: 'Pixel Events', href: '/admin/pixel' },
-  { label: 'Clicks', href: '/admin/clicks' },
-  { label: 'Ad Performance', href: '/admin/ads' },
-  { label: 'Banners', href: '/admin/banners' },
-  { label: 'Blog', href: '/admin/blog' },
+export type NavGroup = {
+  /** Section heading, or null for items that sit above the first section. */
+  label: string | null;
+  items: NavItem[];
+};
+
+/**
+ * Admin sections. Grouped rather than flat because the list outgrew what
+ * anyone can scan at a glance — order follows the working day: what you sell,
+ * what you hold, what came in, how you promote it, how it did.
+ */
+export const adminNavGroups: NavGroup[] = [
+  { label: null, items: [{ label: 'Dashboard', href: '/admin' }] },
+  {
+    label: 'Catalog',
+    items: [
+      { label: 'Products', href: '/admin/products' },
+      { label: 'Categories', href: '/admin/categories' },
+      { label: 'Brands', href: '/admin/brands' },
+    ],
+  },
+  {
+    label: 'Inventory',
+    items: [
+      { label: 'Stock levels', href: '/admin/inventory' },
+      { label: 'Reorder report', href: '/admin/inventory/reorder' },
+      { label: 'Suppliers', href: '/admin/suppliers' },
+      { label: 'Purchasing', href: '/admin/purchasing' },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
+      { label: 'Orders', href: '/admin/orders' },
+      { label: 'Returns', href: '/admin/returns' },
+      { label: 'Reviews', href: '/admin/reviews' },
+      { label: 'Users', href: '/admin/users' },
+    ],
+  },
+  {
+    label: 'Marketing',
+    items: [
+      { label: 'Coupons', href: '/admin/coupons' },
+      { label: 'Flash Sale', href: '/admin/flash-sale' },
+      { label: 'Banners', href: '/admin/banners' },
+      { label: 'Blog', href: '/admin/blog' },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { label: 'Analytics', href: '/admin/analytics' },
+      { label: 'Audience', href: '/admin/audience' },
+      { label: 'Pixel Events', href: '/admin/pixel' },
+      { label: 'Clicks', href: '/admin/clicks' },
+      { label: 'Ad Performance', href: '/admin/ads' },
+    ],
+  },
 ];
+
+/** Flat view of every admin destination, for lookups that ignore grouping. */
+export const adminNav: NavItem[] = adminNavGroups.flatMap((group) => group.items);

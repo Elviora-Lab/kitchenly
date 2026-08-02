@@ -5,6 +5,7 @@ import { type OrderStatus, type Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 
 import { events } from '@/server/events';
+import { inventoryService } from '@/server/services/inventory.service';
 
 /** Terminal states after which the order's reserved stock goes back on shelf. */
 const RESTOCK_STATUSES: OrderStatus[] = ['CANCELLED', 'RETURNED', 'REFUNDED'];
@@ -17,10 +18,14 @@ const RESTOCK_STATUSES: OrderStatus[] = ['CANCELLED', 'RETURNED', 'REFUNDED'];
  * webhook) must give it back. The `stockRestoredAt` claim makes the operation
  * idempotent across those concurrent paths: the conditional `updateMany` lets
  * only ONE caller win, everyone else no-ops.
+ *
+ * The credit itself goes through the stock ledger, so each restored line leaves
+ * an ORDER_RESTOCK movement pointing back at this order.
  */
 export async function restoreOrderStockOnce(
   orderId: string,
   tx?: Prisma.TransactionClient,
+  changedBy?: string | null,
 ): Promise<boolean> {
   const run = async (db: Prisma.TransactionClient) => {
     const claimed = await db.order.updateMany({
@@ -29,18 +34,7 @@ export async function restoreOrderStockOnce(
     });
     if (claimed.count === 0) return false;
 
-    // One statement for every line item (vs. an update per variant) — restores
-    // are usually inside a wider transaction, so keep the lock window short.
-    await db.$executeRaw`
-      UPDATE "product_variants" pv
-      SET "stock_quantity" = pv."stock_quantity" + oi.qty
-      FROM (
-        SELECT "variant_id", SUM("quantity")::int AS qty
-        FROM "order_items"
-        WHERE "order_id" = ${orderId}::uuid AND "variant_id" IS NOT NULL
-        GROUP BY "variant_id"
-      ) oi
-      WHERE pv."id" = oi."variant_id"`;
+    await inventoryService.restoreForOrder(orderId, db, changedBy);
     return true;
   };
 
@@ -83,7 +77,7 @@ export async function transitionOrder(
     // Stock restore rides the same transaction — a rollback undoes both the
     // status flip and the restock, never one without the other.
     if (RESTOCK_STATUSES.includes(status)) {
-      await restoreOrderStockOnce(orderId, tx);
+      await restoreOrderStockOnce(orderId, tx, changedBy);
     }
 
     return { changed: true };
