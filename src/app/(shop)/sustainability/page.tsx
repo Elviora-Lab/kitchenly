@@ -14,9 +14,10 @@ export default function SustainabilityPage() {
     <Section>
       <div className="container flex max-w-3xl flex-col gap-12">
         <SectionHeading
+          as="h1"
           eyebrow="Our promise"
-          title="Better, made carefully."
-          description="We believe luxury and responsibility belong together. We are not perfect — but we are committed to honest, steady progress."
+          title="Buy once, buy well."
+          description="The most responsible product is the one you do not have to replace. We are not perfect — but durability, honest packaging, and steady progress are what we hold ourselves to."
         />
 
         <div className="flex flex-col gap-4">
@@ -31,8 +32,13 @@ export default function SustainabilityPage() {
               suppliers who meet our standards for quality and ethics.
             </li>
             <li>
-              <span className="font-medium text-foreground">Considered production.</span> We make in
-              measured quantities to reduce waste and overstock.
+              <span className="font-medium text-foreground">Measured buying.</span> We are a
+              retailer, not a manufacturer — we order in small, measured batches so we are not
+              sitting on overstock that ends up discounted into landfill.
+            </li>
+            <li>
+              <span className="font-medium text-foreground">Products built to last.</span> We favour
+              items that survive daily use over cheaper versions that get replaced twice a year.
             </li>
           </ul>
         </div>

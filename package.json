@@ -1,8 +1,8 @@
 {
-  "name": "elviora-fs",
+  "name": "kitchenly-storefront",
   "version": "0.1.0",
   "private": true,
-  "description": "Elviora — luxury cosmetics & skincare e-commerce frontend.",
+  "description": "Kitchenly — home, kitchen & everyday essentials e-commerce storefront (kitchenly.com.pk).",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",

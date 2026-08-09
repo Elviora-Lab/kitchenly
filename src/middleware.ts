@@ -50,12 +50,17 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Customer accounts and self-registration are disabled — the storefront is
-  // guest-only. Bounce these routes to the shop before any rendering (a real
-  // 307, no auth checks). Admin auth is unaffected.
+  // guest-only. Bounce these routes to the shop before any rendering (no auth
+  // checks). Admin auth is unaffected.
+  //
+  // 308, not the default 307: these routes are gone for good, and a permanent
+  // redirect is what tells Google to drop the old URLs from the index and pass
+  // any accumulated signals to the destination. A temporary redirect leaves
+  // them lingering as indexable candidates indefinitely.
   if (pathname === '/account' || pathname.startsWith('/account/') || pathname === '/register') {
     const url = req.nextUrl.clone();
     url.pathname = '/';
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(url, 308);
   }
 
   const token = req.cookies.get(ACCESS_COOKIE)?.value;

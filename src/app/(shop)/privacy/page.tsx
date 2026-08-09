@@ -13,6 +13,7 @@ export default function PrivacyPage() {
     <Section>
       <div className="container flex max-w-3xl flex-col gap-12">
         <SectionHeading
+          as="h1"
           eyebrow="Legal"
           title="Privacy policy"
           description="Your trust matters to us. This policy explains what we collect and how we use it."

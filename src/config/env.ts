@@ -38,6 +38,16 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_SENTRY_DSN: optionalStr,
   NEXT_PUBLIC_GOOGLE_CLIENT_ID: optionalStr,
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalStr,
+  // Social profiles published in Organization `sameAs`. These are ENTITY
+  // claims: Google uses them to decide which real-world business this domain
+  // is. Only ever set a URL we actually control — a profile belonging to a
+  // similarly-named business (kitchenly.pk) would invite Google to merge the
+  // two entities, which is the exact opposite of what we need. Unset ⇒ the
+  // property is omitted from the schema entirely, never guessed.
+  NEXT_PUBLIC_SOCIAL_INSTAGRAM: optionalUrl,
+  NEXT_PUBLIC_SOCIAL_FACEBOOK: optionalUrl,
+  NEXT_PUBLIC_SOCIAL_YOUTUBE: optionalUrl,
+  NEXT_PUBLIC_SOCIAL_TIKTOK: optionalUrl,
 });
 
 const serverEnvSchema = z.object({
@@ -118,6 +128,10 @@ const publicEnvSource = {
   NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+  NEXT_PUBLIC_SOCIAL_INSTAGRAM: process.env.NEXT_PUBLIC_SOCIAL_INSTAGRAM,
+  NEXT_PUBLIC_SOCIAL_FACEBOOK: process.env.NEXT_PUBLIC_SOCIAL_FACEBOOK,
+  NEXT_PUBLIC_SOCIAL_YOUTUBE: process.env.NEXT_PUBLIC_SOCIAL_YOUTUBE,
+  NEXT_PUBLIC_SOCIAL_TIKTOK: process.env.NEXT_PUBLIC_SOCIAL_TIKTOK,
 };
 
 const publicParsed = publicEnvSchema.safeParse(publicEnvSource);

@@ -27,6 +27,7 @@ export default function BeautyConciergePage() {
       <SkincareViewTracker />
       <div className="container flex max-w-3xl flex-col gap-12">
         <SectionHeading
+          as="h1"
           eyebrow="Beauty Concierge"
           title="A consultation, made personal."
           description="Some choices are easier with a guide. Our Beauty Concierge offers thoughtful, one-to-one advice to help you find your perfect match."

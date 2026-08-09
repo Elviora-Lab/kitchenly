@@ -10,7 +10,7 @@ import { GuestReviewForm, type ReviewableProduct } from './guest-review-form';
 
 import { verifyReviewToken } from '@/server/auth/tokens';
 
-export const metadata = buildMetadata({ title: 'Leave a review', noIndex: true });
+export const metadata = buildMetadata({ title: 'Leave a review', path: '/review', noIndex: true });
 export const dynamic = 'force-dynamic';
 
 function InvalidLink({ message }: { message?: string }) {

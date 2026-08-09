@@ -10,9 +10,9 @@ import { Section, SectionHeading } from '@/design-system/primitives/section';
 import { blogRepo } from '@/server/repositories/blog.repo';
 
 export const metadata = buildMetadata({
-  title: 'Home Guides',
+  title: 'Home Guides — Organization & Kitchen Tips for Pakistani Homes',
   description:
-    'Home guides — organization ideas, kitchen tips, and product know-how from the Kitchenly team.',
+    'Practical home guides from Kitchenly — closet and kitchen organization ideas, storage tips, and product know-how, with links to the products that solve each problem.',
   path: '/blog',
 });
 
@@ -30,6 +30,7 @@ export default async function BlogIndexPage() {
     <Section>
       <div className="container flex flex-col gap-10">
         <SectionHeading
+          as="h1"
           eyebrow="Home Guides"
           title="Make your space work harder."
           description="Practical organization ideas, kitchen tips, and product know-how from the Kitchenly team."
