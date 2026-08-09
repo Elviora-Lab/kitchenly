@@ -14,6 +14,7 @@ export default function CareersPage() {
     <Section>
       <div className="container flex max-w-3xl flex-col gap-12">
         <SectionHeading
+          as="h1"
           eyebrow="Careers"
           title="Build something beautiful with us."
           description="Kitchenly is a small, ambitious team that cares deeply about product quality, service, and the people we serve."

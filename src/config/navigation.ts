@@ -49,9 +49,20 @@ export const primaryNav: NavItem[] = [...categoryNav, { label: 'Home Guides', hr
 export const mainNav: NavItem[] = [...primaryNav, ...quickLinks];
 
 export const footerNav: Record<string, NavItem[]> = {
+  // Every category, sitewide, from the footer. This is the cheapest way to put
+  // an internal link to each category landing page on EVERY page of the site —
+  // it deepens crawl paths and spreads link equity without touching the header
+  // nav or adding a level to the customer-facing menu.
+  Categories: categoryNav.map((item) => ({
+    label: item.shortLabel ?? item.label,
+    href: item.href,
+  })),
   Shop: [
+    { label: 'All Products', href: '/products' },
+    { label: 'Shop by Category', href: '/categories' },
     { label: 'New Arrivals', href: '/products?sort=newest' },
     { label: 'Best Sellers', href: '/products?sort=popular' },
+    { label: 'Home Guides', href: '/blog' },
     { label: 'Gift Cards', href: '/gift-cards' },
   ],
   Help: [

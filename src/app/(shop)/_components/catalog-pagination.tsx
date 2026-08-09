@@ -16,6 +16,12 @@ import { buttonVariants } from '@/components/ui/button';
  * `params` carries the active sort/brand/search filters into every page link so
  * paging never silently drops a filter. Page 1 is emitted without a `page`
  * param to keep the canonical URL clean.
+ *
+ * Rendered alongside the infinite-scroll grid rather than only inside
+ * `<noscript>`: crawlers do not scroll, so without these hrefs everything past
+ * the first 24 products of a category is reachable only from the sitemap, with
+ * no internal links pointing at it. `showSummary` turns off the item count when
+ * the grid above already reports its own progress.
  */
 export function CatalogPagination({
   page,
@@ -23,12 +29,17 @@ export function CatalogPagination({
   total,
   basePath,
   params,
+  showSummary = true,
+  label,
 }: {
   page: number;
   pageSize: number;
   total: number;
   basePath: string;
   params: Record<string, string | undefined>;
+  showSummary?: boolean;
+  /** Small heading shown beside the page links (e.g. "Browse by page"). */
+  label?: string;
 }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -44,13 +55,21 @@ export function CatalogPagination({
     return qs ? `${basePath}?${qs}` : basePath;
   };
 
-  if (total === 0) return null;
+  // Nothing to link to: an empty listing, or one that fits on a single page
+  // and therefore needs no page links at all.
+  if (total === 0 || (!showSummary && totalPages <= 1)) return null;
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-6">
-      <p className="text-xs text-muted-foreground">
-        Showing {from}–{to} of {total} products
-      </p>
+      {showSummary ? (
+        <p className="text-xs text-muted-foreground">
+          Showing {from}–{to} of {total} products
+        </p>
+      ) : (
+        <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+          {label ?? 'Browse by page'}
+        </p>
+      )}
 
       {totalPages > 1 ? (
         <nav aria-label="Pagination" className="flex items-center gap-1">

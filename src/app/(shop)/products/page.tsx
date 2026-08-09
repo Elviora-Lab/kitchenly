@@ -16,7 +16,7 @@ import { brandsService } from '@/server/services/brands.service';
 import { productsService } from '@/server/services/products.service';
 
 const LIST_DESCRIPTION =
-  'Browse the full Kitchenly range — kitchen gadgets, storage, cleaning, and household essentials.';
+  'Shop the full Kitchenly range online in Pakistan — kitchen accessories, home and living, organizers, gadgets, beauty, baby and decor. Cash on delivery nationwide.';
 
 /**
  * Per-page canonical. Page 2+ points at itself rather than collapsing onto
@@ -31,8 +31,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const sp = await searchParams;
   const page = Math.max(1, Number(str(sp.page)) || 1);
+  const base = 'All Products — Home, Kitchen & Everyday Essentials in Pakistan';
   return buildMetadata({
-    title: page > 1 ? `All products — page ${page}` : 'All products',
+    title: page > 1 ? `${base} — Page ${page}` : base,
     description: LIST_DESCRIPTION,
     path: page > 1 ? `/products?page=${page}` : '/products',
   });
@@ -69,8 +70,10 @@ export default async function ProductsPage({
         <header className="flex flex-col gap-2">
           <span className="eyebrow">Catalog</span>
           <h1 className="editorial-heading text-display-lg">All products</h1>
-          <p className="max-w-xl text-sm text-muted-foreground">
-            Every gadget, organizer, and essential we stock — quality-checked and ready to ship.
+          <p className="max-w-2xl text-pretty text-sm leading-relaxed text-muted-foreground">
+            Everything Kitchenly stocks, in one place — kitchen tools and storage, home and cleaning
+            essentials, wardrobe organizers, gadgets, beauty, baby and decor. Delivered anywhere in
+            Pakistan with cash on delivery.
           </p>
         </header>
         <ProductFilters brands={brands.map((b) => ({ name: b.name, slug: b.slug }))} />
@@ -84,17 +87,19 @@ export default async function ProductsPage({
           listId="catalog"
           listName="All products"
         />
-        {/* Without JS (and for crawlers) infinite scroll can't run — real page
-            links keep the rest of the catalog reachable. */}
-        <noscript>
-          <CatalogPagination
-            page={page}
-            pageSize={PAGE_SIZE}
-            total={total}
-            basePath="/products"
-            params={{ q: str(sp.q), brand: str(sp.brand), sort: str(sp.sort) }}
-          />
-        </noscript>
+        {/* Always rendered, not wrapped in <noscript>. Infinite scroll can't run
+            for a crawler, and with 579 products the sitemap was the only thing
+            pointing at anything past the first 24 — no internal links, so no
+            link equity reaching deep products. */}
+        <CatalogPagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={total}
+          basePath="/products"
+          params={{ q: str(sp.q), brand: str(sp.brand), sort: str(sp.sort) }}
+          showSummary={false}
+          label="Browse the full catalog"
+        />
 
         <JsonLd
           data={breadcrumbJsonLd([

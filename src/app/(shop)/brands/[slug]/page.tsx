@@ -27,15 +27,26 @@ const PAGE_SIZE = 24;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
-  const brand = await brandsService.getBySlug(slug);
+  const [brand, brands] = await Promise.all([
+    brandsService.getBySlug(slug),
+    brandsService.list().catch(() => []),
+  ]);
   if (!brand || !brand.isActive) {
     return buildMetadata({ title: 'Brand not found', path: `/brands/${slug}`, noIndex: true });
   }
   return buildMetadata({
-    title: brand.name,
-    description: brand.description ?? `Shop ${brand.name} at Kitchenly.`,
+    title: `${brand.name} Products Online in Pakistan`,
+    description:
+      brand.description ??
+      `Shop the full ${brand.name} range online in Pakistan — home, kitchen and everyday essentials with cash on delivery nationwide.`,
     path: `/brands/${slug}`,
     image: brand.logo ?? undefined,
+    // The whole catalog currently sits under a single own-label brand, so this
+    // page is a byte-for-byte duplicate of /products competing with it for the
+    // same queries. Keep it crawlable (`follow` — it links to every product)
+    // but out of the index until a second brand exists, at which point brand
+    // pages become genuinely distinct and this lifts itself automatically.
+    noIndex: brands.filter((b) => b.isActive).length < 2,
   });
 }
 

@@ -15,6 +15,7 @@ export default function TermsPage() {
     <Section>
       <div className="container flex max-w-3xl flex-col gap-12">
         <SectionHeading
+          as="h1"
           eyebrow="Legal"
           title="Terms of service"
           description="Please read these terms carefully. By using our site or placing an order, you agree to them."

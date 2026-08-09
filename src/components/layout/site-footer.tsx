@@ -16,8 +16,12 @@ export function SiteFooter() {
   return (
     <footer className="surface-navy">
       <div className="container py-16">
-        <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-5">
-          <div className="flex max-w-md flex-col gap-4 lg:col-span-2">
+        {/* Brand block beside a self-sizing column grid, rather than one fixed
+            12-column layout — the nav gained a full Categories column (an
+            internal link to every category landing page, on every page of the
+            site) and a hardcoded column count would have silently overflowed. */}
+        <div className="flex flex-col gap-12 lg:flex-row lg:items-start lg:gap-16">
+          <div className="flex max-w-md flex-col gap-4 lg:w-1/3 lg:shrink-0">
             <BrandLockup size={44} />
             <p className="text-pretty text-sm leading-relaxed text-muted-foreground">
               {siteConfig.description}
@@ -25,25 +29,30 @@ export function SiteFooter() {
             <NewsletterForm />
           </div>
 
-          {Object.entries(footerNav).map(([heading, items]) => (
-            <div key={heading} className="flex flex-col gap-3">
-              <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-accent">
-                {heading}
-              </h4>
-              <ul className="flex flex-col gap-2.5">
-                {items.map((item) => (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <nav
+            aria-label="Footer"
+            className="grid flex-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+          >
+            {Object.entries(footerNav).map(([heading, items]) => (
+              <div key={heading} className="flex flex-col gap-3">
+                <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-accent">
+                  {heading}
+                </h4>
+                <ul className="flex flex-col gap-2.5">
+                  {items.map((item) => (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </nav>
         </div>
 
         <div className="soft-divider my-10" />

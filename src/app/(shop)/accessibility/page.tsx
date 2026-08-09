@@ -14,6 +14,7 @@ export default function AccessibilityPage() {
     <Section>
       <div className="container flex max-w-3xl flex-col gap-12">
         <SectionHeading
+          as="h1"
           eyebrow="Accessibility"
           title="A store for everyone."
           description="We want every visitor to move through Kitchenly with ease, whatever device or assistive technology they use."

@@ -64,6 +64,7 @@ export default function FaqPage() {
       <JsonLd data={faqJsonLd(FAQS.map((f) => ({ question: f.question, answer: f.answer })))} />
       <div className="container flex max-w-3xl flex-col gap-10">
         <SectionHeading
+          as="h1"
           eyebrow="Help centre"
           title="Frequently asked questions"
           description="The essentials, gathered in one place. Need something more specific? Our team is one message away."

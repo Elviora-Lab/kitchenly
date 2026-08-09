@@ -17,9 +17,10 @@ export default function GiftCardsPage() {
     <Section>
       <div className="container flex max-w-3xl flex-col gap-12">
         <SectionHeading
+          as="h1"
           eyebrow="The perfect gift"
           title="Kitchenly gift cards"
-          description="When you are not sure of the shade, give the gift of choice. Our gift cards never expire and can be used on anything in the house."
+          description="When you are not sure which one they would pick, give the choice instead. Our gift cards never expire and work on anything in the store."
         />
 
         <div className="flex flex-col gap-4">

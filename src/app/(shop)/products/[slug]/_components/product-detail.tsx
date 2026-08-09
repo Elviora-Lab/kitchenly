@@ -1,6 +1,7 @@
 import { flashPrice } from '@/lib/flash-sale';
 import { breadcrumbJsonLd, productJsonLd } from '@/lib/seo/json-ld';
 import { JsonLd } from '@/lib/seo/json-ld-component';
+import { stripSupplierBoilerplate } from '@/lib/seo/metadata';
 
 import { ProductCard } from '@/design-system/patterns/product-card';
 import { Breadcrumb } from '@/design-system/primitives/breadcrumb';
@@ -88,6 +89,21 @@ export async function ProductDetail({
   const startingPrice = variantOptions.length ? Math.min(...variantOptions.map((v) => v.price)) : 0;
   const totalStock = product.variants.reduce((sum, v) => sum + v.stockQuantity, 0);
 
+  // Home → Kitchen Accessories → Product. The generic /products level used to
+  // sit in the middle, which told Google nothing about what the item IS and
+  // pushed link equity to a catalog dump instead of the topical category the
+  // product should rank under. When a product has no category we fall back to
+  // /products rather than inventing a level.
+  const crumbTrail = product.category
+    ? [
+        { label: 'Home', href: '/' },
+        { label: product.category.name, href: `/categories/${product.category.slug}` },
+      ]
+    : [
+        { label: 'Home', href: '/' },
+        { label: 'All products', href: '/products' },
+      ];
+
   return (
     <Section>
       <div className="container flex flex-col gap-10">
@@ -106,24 +122,19 @@ export async function ProductDetail({
             }}
           />
         ) : null}
-        <Breadcrumb
-          items={[
-            { label: 'Home', href: '/' },
-            { label: 'Products', href: '/products' },
-            ...(product.category
-              ? [{ label: product.category.name, href: `/categories/${product.category.slug}` }]
-              : []),
-            { label: product.name },
-          ]}
-        />
+        <Breadcrumb items={[...crumbTrail, { label: product.name }]} />
 
         <ProductExperience
           productId={product.id}
           productName={product.name}
           brandName={product.brand?.name ?? undefined}
           brandSlug={product.brand?.slug ?? undefined}
-          shortDescription={product.shortDescription ?? undefined}
-          fullDescription={product.fullDescription ?? undefined}
+          // Rendered copy gets the same boilerplate strip as the metadata, so
+          // a shopper never lands on a page whose entire description is
+          // "Take a look at Portable" and no product page advertises a
+          // wholesale price on a direct-to-consumer store.
+          shortDescription={stripSupplierBoilerplate(product.shortDescription) || undefined}
+          fullDescription={stripSupplierBoilerplate(product.fullDescription) || undefined}
           skinConcerns={product.skinConcerns.map((pc) => ({
             id: pc.skinConcern.id,
             name: pc.skinConcern.name,
@@ -170,8 +181,7 @@ export async function ProductDetail({
         {/* SEO */}
         <JsonLd
           data={breadcrumbJsonLd([
-            { label: 'Home', href: '/' },
-            { label: 'Products', href: '/products' },
+            ...crumbTrail,
             { label: product.name, href: `/products/${slug}` },
           ])}
         />
@@ -179,7 +189,11 @@ export async function ProductDetail({
           data={productJsonLd({
             name: product.name,
             slug: product.slug,
-            description: product.shortDescription ?? product.fullDescription ?? '',
+            // Prefer the longer body copy — the cleaner in `productJsonLd`
+            // strips the imported "Take a look at…" lead-in and the B2B
+            // "Get in wholesale price" line before it reaches Google.
+            description: product.fullDescription ?? product.shortDescription ?? '',
+            category: product.category?.name,
             imageUrl: primaryImage ?? '',
             images: product.images.map((i) => i.imageUrl).filter(Boolean),
             price: startingPrice,

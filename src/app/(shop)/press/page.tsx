@@ -14,6 +14,7 @@ export default function PressPage() {
     <Section>
       <div className="container flex max-w-3xl flex-col gap-12">
         <SectionHeading
+          as="h1"
           eyebrow="Press"
           title="In the press"
           description="For interviews, features, and product loans, our press team is happy to help."

@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { ArrowRight, BadgeCheck, RotateCcw, ShieldCheck, Star, Truck } from 'lucide-react';
 
+import { categorySeo } from '@/config/category-seo';
 import { routes } from '@/config/routes';
+import { siteConfig } from '@/config/site';
 
 import { buildMetadata } from '@/lib/seo/metadata';
 
@@ -30,10 +32,20 @@ import { flashSaleService } from '@/server/services/flash-sale.service';
 import { productsService } from '@/server/services/products.service';
 import { promotionsService } from '@/server/services/promotions.service';
 
+/**
+ * Homepage positioning is deliberately NOT kitchen-only. The brand name reads
+ * as kitchenware, but the catalog spans home, living, baby, beauty, gadgets,
+ * wardrobe, decor and mobile accessories — anchoring the homepage on "kitchen
+ * accessories" would cap the topical ceiling of the entire domain and force a
+ * rebuild the next time a category is added. Kitchen stays the strongest
+ * cluster; it just does not define the site.
+ */
 export const metadata = buildMetadata({
-  title: 'Smart Living Essentials',
+  title: 'Home, Kitchen & Everyday Essentials in Pakistan',
   description:
-    'Kitchenly — kitchen gadgets, home organization, cleaning and utility essentials chosen for build quality and everyday value, delivered across Pakistan.',
+    'Shop practical home, kitchen and everyday essentials online in Pakistan — organizers, gadgets, baby, beauty and decor. Cash on delivery, free over Rs 8,000.',
+  path: '/',
+  keywords: [...siteConfig.keywords],
 });
 
 // ISR — the homepage is the same for everyone; revalidate periodically so new
@@ -94,7 +106,9 @@ export default async function HomePage() {
   const bentoCategories = merchandising.map((c, i) => ({
     name: c.name,
     href: routes.category(c.slug),
-    blurb: c.description,
+    // `categories.description` is NULL for every row, so the tiles rendered
+    // with no caption at all. Fall back to the hand-written hook.
+    blurb: c.description ?? categorySeo(c.slug)?.blurb ?? null,
     img: categoryImages[i],
     children: c.children.map((child) => child.name),
   }));
@@ -274,7 +288,7 @@ export default async function HomePage() {
             <SectionHeading
               eyebrow="Find your fit"
               title="Shop by what your home needs"
-              description="Four doors in — kitchen, storage, cleaning, and the everyday bits in between."
+              description="Kitchen and storage, home and cleaning, wardrobe, beauty, baby, gadgets and decor — every shelf, one click away."
             />
             <CategoryBento categories={bentoCategories} />
           </div>

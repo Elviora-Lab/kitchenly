@@ -1,15 +1,17 @@
 import type { Metadata } from 'next';
 
+import { categorySeo, MIN_INDEXABLE_PRODUCTS } from '@/config/category-seo';
 import { routes } from '@/config/routes';
 
-import { breadcrumbJsonLd, itemListJsonLd } from '@/lib/seo/json-ld';
+import { breadcrumbJsonLd, collectionPageJsonLd } from '@/lib/seo/json-ld';
 import { JsonLd } from '@/lib/seo/json-ld-component';
-import { buildMetadata } from '@/lib/seo/metadata';
+import { buildMetadata, generateCategoryMetadata } from '@/lib/seo/metadata';
 
 import { Breadcrumb } from '@/design-system/primitives/breadcrumb';
 import { Section } from '@/design-system/primitives/section';
 import { CategoryViewTracker } from '@/components/analytics/pixel-trackers';
 
+import { CategorySeoBlock } from '@/features/categories/components/category-seo-block';
 import {
   type SubcategoryChip,
   SubcategoryNav,
@@ -19,6 +21,7 @@ import { ProductFilters } from '@/features/products/components/product-filters';
 
 import { CatalogPagination } from '../../_components/catalog-pagination';
 
+import { blogRepo } from '@/server/repositories/blog.repo';
 import { type ProductListSort } from '@/server/repositories/products.repo';
 import { brandsService } from '@/server/services/brands.service';
 import { categoriesService } from '@/server/services/categories.service';
@@ -47,18 +50,33 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const sp = await searchParams;
-  const category = await categoriesService.getBySlug(slug);
+  const [category, listing] = await Promise.all([
+    categoriesService.getBySlug(slug).catch(() => null),
+    // Only the total is needed here, so ask for a single row.
+    productsService.list({ category: slug }, 'newest', 1, 1).catch(() => ({ items: [], total: 0 })),
+  ]);
   const name = category?.name ?? prettify(slug);
-  // Self-referencing canonical per page (see /products for the rationale);
-  // sort/brand variants still fold onto the clean category URL.
+  const seo = categorySeo(slug);
+  // Self-referencing canonical per page; sort/brand variants still fold onto
+  // the clean category URL.
   const page = Math.max(1, Number(str(sp.page)) || 1);
-  return buildMetadata({
-    title: page > 1 ? `${name} — page ${page}` : name,
-    description:
-      category?.description ??
-      `Shop ${name} at Kitchenly — practical, quality-checked essentials for your home.`,
-    path: page > 1 ? `/categories/${slug}?page=${page}` : `/categories/${slug}`,
+
+  const meta = generateCategoryMetadata({
+    slug,
+    name,
+    seoTitle: seo?.title,
+    seoDescription: seo?.description,
+    description: category?.description,
+    page,
   });
+
+  // A category too thin to deserve a ranking stays live and linked but is kept
+  // out of the index (and out of the sitemap) until it has real inventory —
+  // asking Google to rank a three-product page trains it to distrust the rest.
+  if (listing.total < MIN_INDEXABLE_PRODUCTS) {
+    return { ...meta, robots: buildMetadata({ noIndex: true }).robots };
+  }
+  return meta;
 }
 
 export default async function CategoryPage({
@@ -76,21 +94,33 @@ export default async function CategoryPage({
     ? (sortParam as ProductListSort)
     : 'newest';
   const page = Math.max(1, Number(str(sp.page)) || 1);
+  const seo = categorySeo(slug);
 
   // The category row drives the display name, description, and subcategory
   // chips; unknown slugs still render a (likely empty) product listing.
-  const [category, { items, total }, brands] = await Promise.all([
+  const [category, { items, total }, brands, allCategories, guides] = await Promise.all([
     categoriesService.getBySlug(slug).catch(() => null),
     productsService
       .list({ category: slug, brand: str(sp.brand) }, sort, page, PAGE_SIZE)
       .catch(() => ({ items: [], total: 0 })),
     brandsService.list().catch(() => []),
+    categoriesService.list().catch(() => []),
+    blogRepo.listBySlugs(seo?.guides ?? []).catch(() => []),
   ]);
 
   const name = category?.name ?? prettify(slug);
+  const heading = seo?.h1 ?? name;
+  const lead = seo?.lead ?? category?.description ?? null;
   const parent = category?.parent ?? null;
   const children = category?.children ?? [];
   const siblings = parent?.children ?? [];
+
+  // Sideways links, resolved against the live category list so a slug removed
+  // from the DB silently drops out instead of rendering a dead link.
+  const relatedCategories = (seo?.related ?? [])
+    .map((s) => allCategories.find((c) => c.slug === s))
+    .filter((c): c is NonNullable<typeof c> => !!c)
+    .map((c) => ({ name: c.name, slug: c.slug }));
 
   // Parent page → chips for its subcategories ("All" = the page itself).
   // Subcategory page → chips for its siblings, current one highlighted.
@@ -124,10 +154,10 @@ export default async function CategoryPage({
         <Breadcrumb items={crumbs} />
         <header className="flex flex-col gap-2">
           <span className="eyebrow">{parent ? parent.name : 'Category'}</span>
-          <h1 className="editorial-heading text-display-lg">{name}</h1>
-          {category?.description ? (
-            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              {category.description}
+          <h1 className="editorial-heading text-display-lg">{heading}</h1>
+          {lead ? (
+            <p className="max-w-3xl text-pretty text-sm leading-relaxed text-muted-foreground">
+              {lead}
             </p>
           ) : null}
         </header>
@@ -144,15 +174,23 @@ export default async function CategoryPage({
           listId={`category_${slug}`}
           listName={name}
         />
-        <noscript>
-          <CatalogPagination
-            page={page}
-            pageSize={PAGE_SIZE}
-            total={total}
-            basePath={routes.category(slug)}
-            params={{ brand: str(sp.brand), sort: str(sp.sort) }}
-          />
-        </noscript>
+        {/* Rendered for everyone, not just inside <noscript>. Infinite scroll is
+            the shopper's path through a long listing, but a crawler never
+            scrolls — these real hrefs are how pages 2..n of a 197-product
+            category get discovered and how link equity reaches deep products. */}
+        <CatalogPagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={total}
+          basePath={routes.category(slug)}
+          params={{ brand: str(sp.brand), sort: str(sp.sort) }}
+          showSummary={false}
+          label={`All ${name.toLowerCase()}`}
+        />
+
+        {seo ? (
+          <CategorySeoBlock seo={seo} relatedCategories={relatedCategories} guides={guides} />
+        ) : null}
 
         <JsonLd
           data={breadcrumbJsonLd([
@@ -162,14 +200,14 @@ export default async function CategoryPage({
             { label: name, href: `/categories/${slug}` },
           ])}
         />
-        {items.length > 0 ? (
-          <JsonLd
-            data={itemListJsonLd(
-              items.map((p) => ({ name: p.name, slug: p.slug })),
-              { path: `/categories/${slug}` },
-            )}
-          />
-        ) : null}
+        <JsonLd
+          data={collectionPageJsonLd({
+            name: heading,
+            description: seo?.description ?? category?.description ?? '',
+            path: `/categories/${slug}`,
+            items: items.map((p) => ({ name: p.name, slug: p.slug })),
+          })}
+        />
       </div>
     </Section>
   );

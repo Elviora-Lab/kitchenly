@@ -1,9 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
-import { siteConfig } from '@/config/site';
-
-import { buildMetadata } from '@/lib/seo/metadata';
+import { buildMetadata, generateProductMetadata } from '@/lib/seo/metadata';
 
 import { ProductDetail } from './_components/product-detail';
 
@@ -20,10 +18,19 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   try {
     // Metadata pass — don't count this as a product view.
     const product = await productsService.getBySlug(slug, { track: false });
-    return buildMetadata({
-      title: product.seoTitle ?? product.name,
-      description: product.seoDescription ?? product.shortDescription ?? siteConfig.description,
-      path: `/products/${slug}`,
+    // Titles and descriptions are composed by the shared factory rather than
+    // read straight off the row: ~200 imported products carry truncated
+    // supplier copy ("Take a look at…", some as short as six characters) in
+    // `seo_description`, which was being served verbatim as the meta
+    // description and as the Product schema `description`.
+    return generateProductMetadata({
+      name: product.name,
+      slug,
+      seoTitle: product.seoTitle,
+      seoDescription: product.seoDescription,
+      shortDescription: product.shortDescription,
+      fullDescription: product.fullDescription,
+      categoryName: product.category?.name,
       image: product.images[0]?.imageUrl,
     });
   } catch {

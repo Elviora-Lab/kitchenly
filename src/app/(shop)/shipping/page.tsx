@@ -22,6 +22,7 @@ export default function ShippingPage() {
     <Section>
       <div className="container flex max-w-3xl flex-col gap-12">
         <SectionHeading
+          as="h1"
           eyebrow="Delivery"
           title="Shipping & returns"
           description="Everything you need to know about getting Kitchenly to your door — and sending it back if it is not quite right."
