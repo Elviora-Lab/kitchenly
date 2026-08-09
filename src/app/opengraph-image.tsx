@@ -7,7 +7,7 @@ import { siteConfig } from '@/config/site';
 // everything else inherits this branded card. Replaces the old /og.jpg that
 // never existed. Regenerated statically at build — no binary asset to maintain.
 
-export const alt = `${siteConfig.name} — ${siteConfig.tagline}`;
+export const alt = `${siteConfig.name} — ${siteConfig.positioning}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -58,7 +58,7 @@ export default function OpengraphImage() {
             display: 'flex',
           }}
         >
-          {siteConfig.tagline.toUpperCase()}
+          {siteConfig.positioning.toUpperCase()}
         </div>
       </div>
     </div>,

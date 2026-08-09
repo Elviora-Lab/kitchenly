@@ -41,7 +41,13 @@ import { promotionsService } from '@/server/services/promotions.service';
  * cluster; it just does not define the site.
  */
 export const metadata = buildMetadata({
-  title: 'Home, Kitchen & Everyday Essentials in Pakistan',
+  // "Online in Pakistan" over a bare "in Pakistan": the modifier matches how
+  // the commercial queries are actually typed ("home products online pakistan",
+  // "online shopping pakistan"), and the head term stays at the front where it
+  // carries most weight. At 66 characters the trailing brand may be clipped in
+  // desktop SERPs — an accepted trade, since brand queries resolve on the
+  // domain and Organization schema rather than on the title tag.
+  title: 'Home, Kitchen & Everyday Essentials Online in Pakistan',
   description:
     'Shop practical home, kitchen and everyday essentials online in Pakistan — organizers, gadgets, baby, beauty and decor. Cash on delivery, free over Rs 8,000.',
   path: '/',
@@ -474,13 +480,17 @@ export default async function HomePage() {
           <CodSteps />
           <Reveal inView className="flex flex-col items-center gap-5 pt-2 text-center">
             <p className="editorial-heading text-display-sm">
+              {/* `productCount` is an authoritative COUNT of active products,
+                  so the number is real rather than a hardcoded claim. The
+                  fallback covers only a catalog-service failure, where evergreen
+                  copy beats admitting we could not count our own shelves. */}
               {productCount > 0 ? (
                 <>
                   <CountUp value={productCount} suffix="+" /> essentials, one promise — worth the
                   drawer space.
                 </>
               ) : (
-                'One promise — worth the drawer space.'
+                'Hundreds of essentials, one promise — worth the drawer space.'
               )}
             </p>
             <PromoCodeChip className="border-brand-cloud/30 bg-card/60" />

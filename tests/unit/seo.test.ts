@@ -49,6 +49,70 @@ describe('stripSupplierBoilerplate', () => {
     const input = 'Take a look at Storage Box\n\n- Stackable\n- Dustproof\nGet in wholesale price';
     expect(stripSupplierBoilerplate(input)).toBe('Storage Box\n\n- Stackable\n- Dustproof');
   });
+
+  it('keeps markdown list markers intact', () => {
+    // Regression: the stray-punctuation trim used to eat the "- " off bullets,
+    // collapsing every PDP feature list into prose.
+    expect(stripSupplierBoilerplate('# Features\n- One\n- Two')).toBe('# Features\n- One\n- Two');
+  });
+});
+
+describe('supplier-import artifact repair', () => {
+  it('removes the preposition the importer orphaned when it deleted a brand', () => {
+    // Shipped to production as: "…the Hand-Pulled Speedy Chopper by ."
+    expect(cleanCopy('Cut prep time in half with the Speedy Chopper by . Designed for ease.')).toBe(
+      'Cut prep time in half with the Speedy Chopper. Designed for ease.',
+    );
+    expect(cleanCopy('Meet the Fry & Strain Pot from —your all-in-one solution.')).toBe(
+      'Meet the Fry & Strain Pot — your all-in-one solution.',
+    );
+  });
+
+  it('decodes HTML entities so they cannot double-encode in a meta tag', () => {
+    expect(cleanCopy('Quick, Cordless &amp; Hassle-Free')).toBe('Quick, Cordless & Hassle-Free');
+  });
+
+  it('decodes &amp; last so an escaped entity is not resolved twice', () => {
+    expect(cleanCopy('Compare 5 &amp;lt; 10')).toBe('Compare 5 &lt; 10');
+  });
+
+  it("drops another shop's price template and its city list", () => {
+    const input =
+      'Wide Traders has the best prices of Toothbrush Cover in Pakistan with fast delivery in all major cities of Pakistan. Including Karachi, Lahore, Multan, Islamabad, and many more cities at the lowest price. Compact and travel-friendly design.';
+    expect(cleanCopy(input)).toBe('Compact and travel-friendly design.');
+  });
+
+  it("drops another shop's returns window rather than restating it", () => {
+    // Our published policy is 3 days. Serving a scraped "7 days" is a false
+    // promise to the customer, so it is removed, not corrected.
+    expect(cleanCopy('Durable build. Hassle free 7 days return policy')).toBe('Durable build.');
+    expect(cleanCopy('Hassle free 7 days return policy')).not.toMatch(/\d+\s*days/);
+  });
+
+  it('drops the generic "Why Buy From Us" block, including the source typo', () => {
+    expect(cleanCopy('Easy DIY installation Why Buy From You High quality adhesive backing')).toBe(
+      'Easy DIY installation',
+    );
+    expect(cleanCopy('Portable. Why Buy From Us: Fast delivery & trusted service')).toBe(
+      'Portable.',
+    );
+  });
+
+  it('restores the boundary where a lost newline welded a heading to the body', () => {
+    expect(cleanCopy('Quick & Easy Food PrepKitchen Accessories Features: sharp blades')).toBe(
+      'Quick & Easy Food Prep — Kitchen Accessories Features: sharp blades',
+    );
+  });
+
+  it('leaves an honest description completely untouched', () => {
+    const good =
+      'A 10kg airtight rice dispenser with a measured pour spout, sized to sit under a standard counter.';
+    expect(cleanCopy(good)).toBe(good);
+  });
+
+  it('returns empty rather than a stub when only boilerplate was there', () => {
+    expect(cleanCopy('Take a look at Get in wholesale price')).toBe('');
+  });
 });
 
 describe('clamp', () => {

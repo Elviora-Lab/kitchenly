@@ -123,26 +123,103 @@ export const productsRepo = {
     });
   },
 
-  /** Lean lookup for the related-products path: just the keys, no relations. */
-  async findIdAndCategory(slug: string) {
+  /**
+   * Lean lookup for the related-products path — the keys the relevance ranking
+   * needs, without loading the seven relations `findBySlug` pulls.
+   */
+  async findRelatedSeed(slug: string) {
     return prisma.product.findUnique({
       where: { slug },
-      select: { id: true, categoryId: true },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        categoryId: true,
+        categories: { select: { categoryId: true } },
+      },
     });
   },
 
-  async findRelated(productId: string, categoryId: string | null, limit: number) {
-    return prisma.product.findMany({
+  /**
+   * Products genuinely related to `seed`, ranked rather than arbitrary.
+   *
+   * The previous implementation filtered on the primary `categoryId` and had NO
+   * `ORDER BY`, so Postgres returned whatever the planner happened to yield —
+   * the "Frequently bought together" rail on a vegetable chopper could be four
+   * unrelated wall stickers. Ranking now runs on three signals, in order:
+   *
+   *  1. **Shared category count.** Uses the full `product_categories`
+   *     membership, not just the primary category, so a product merchandised in
+   *     both "Kitchen Accessories" and "Random Gadgets" scores highest against
+   *     others sharing both.
+   *  2. **Trigram name similarity.** `similarity()` from pg_trgm, backed by the
+   *     existing GIN index on `products.name`, is what actually makes a chopper
+   *     surface other choppers rather than other kitchen miscellany.
+   *  3. **Price proximity.** Among equally related items, ones in the same price
+   *     bracket are the plausible cross-sell.
+   *
+   * Falls back to the plain same-category query if the ranked one fails (e.g. a
+   * database without pg_trgm), and tops up from the primary category when the
+   * seed has too few category-mates to fill the rail.
+   */
+  async findRelated(
+    seed: { id: string; name: string; price: unknown; categoryId: string | null },
+    categoryIds: string[],
+    limit: number,
+  ) {
+    const hydrate = async (ids: string[]) => {
+      if (ids.length === 0) return [];
+      const rows = await prisma.product.findMany({
+        where: { id: { in: ids } },
+        include: {
+          images: { where: { isPrimary: true }, take: 1 },
+          brand: { select: { name: true } },
+        },
+      });
+      // `findMany` does not preserve the order of an `in` list — restore the
+      // ranking, otherwise all of the work above is thrown away.
+      const order = new Map(ids.map((id, i) => [id, i]));
+      return rows.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+    };
+
+    let rankedIds: string[] = [];
+    if (categoryIds.length > 0) {
+      try {
+        const ranked = await prisma.$queryRaw<{ id: string }[]>`
+          SELECT p.id
+          FROM products p
+          JOIN product_categories pc ON pc.product_id = p.id
+          WHERE p.is_active
+            AND p.id <> ${seed.id}::uuid
+            AND pc.category_id = ANY(${categoryIds}::uuid[])
+          GROUP BY p.id
+          ORDER BY
+            COUNT(DISTINCT pc.category_id) DESC,
+            similarity(p.name, ${seed.name}) DESC,
+            ABS(p.price - ${seed.price}::numeric) ASC
+          LIMIT ${limit}
+        `;
+        rankedIds = ranked.map((r) => r.id);
+      } catch {
+        rankedIds = [];
+      }
+    }
+
+    if (rankedIds.length >= limit) return hydrate(rankedIds.slice(0, limit));
+
+    // Top up from the primary category (then anything active) so the rail is
+    // never short — a seed in a small category still fills four slots.
+    const fill = await prisma.product.findMany({
       where: {
         isActive: true,
-        id: { not: productId },
-        ...(categoryId ? { categoryId } : {}),
+        id: { notIn: [seed.id, ...rankedIds] },
+        ...(seed.categoryId ? { categoryId: seed.categoryId } : {}),
       },
-      take: limit,
-      include: {
-        images: { where: { isPrimary: true }, take: 1 },
-        brand: { select: { name: true } },
-      },
+      orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
+      take: limit - rankedIds.length,
+      select: { id: true },
     });
+
+    return hydrate([...rankedIds, ...fill.map((f) => f.id)].slice(0, limit));
   },
 };
