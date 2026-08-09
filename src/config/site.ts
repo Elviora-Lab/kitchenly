@@ -26,11 +26,23 @@ export const siteConfig = {
   alternateName: 'Kitchenly Pakistan',
   url: SITE_URL,
   /**
-   * Positioning line. Deliberately NOT kitchen-only: the catalog spans kitchen,
-   * home, living, beauty, baby, gadgets, wardrobe, decor and mobile
-   * accessories, and the architecture has to survive the next category too.
+   * VISIBLE slogan — brand lockup, mobile drawer, footer copyright, shipping
+   * label. Short enough to sit under a logo without wrapping.
+   *
+   * Deliberately NOT the same string as {@link positioning} below. The two do
+   * different jobs and were briefly collapsed into one, which put a 35-character
+   * SEO phrase under the logo mark. A slogan is read by a person in half a
+   * second; a positioning line is read by a crawler deciding what this domain
+   * sells. Change this one for brand reasons, that one for search reasons.
    */
-  tagline: 'Home, Kitchen & Everyday Essentials',
+  tagline: 'Smart Living Essentials',
+  /**
+   * SEO/entity positioning — the metadata fallback title and the Open Graph
+   * card. Deliberately NOT kitchen-only: the catalog spans kitchen, home,
+   * living, beauty, baby, gadgets, wardrobe, decor and mobile accessories, and
+   * the architecture has to survive the next category too.
+   */
+  positioning: 'Home, Kitchen & Everyday Essentials',
   /**
    * Entity description — the sentence we want Google to associate with this
    * domain. Leads with breadth (home + kitchen + everyday), names the market

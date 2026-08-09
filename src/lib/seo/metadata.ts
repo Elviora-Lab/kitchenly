@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 
 import { SITE_URL, siteConfig } from '@/config/site';
 
+import { normalizeProductCopy } from './product-copy';
+
 /**
  * Centralised metadata factory.
  *
@@ -43,77 +45,28 @@ export function absoluteUrl(path = '/'): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Boilerplate that arrived with the supplier catalog import and must never
- * reach a title, meta description, or structured-data `description`.
+ * Strip supplier boilerplate and flatten to plain text for a meta tag or a
+ * JSON-LD `description`.
  *
- * - "Take a look at …" is a listing-page lead-in; ~200 imported rows were
- *   truncated mid-phrase by the 500-char SEO column, leaving descriptions as
- *   short as "Take a" — which is what Google was being served.
- * - "Get in wholesale price" is B2B supplier copy on a direct-to-consumer
- *   storefront.
- */
-const JUNK_PATTERNS: RegExp[] = [
-  // Global, not `^`-anchored: the lead-in also turns up mid-copy, where a row
-  // reads "<product name>! Take a look at <product name> Description: …".
-  // Longest form first — "take a look at" must be tried before "take a look".
-  /\btake a look at\b[\s:—-]*/gi,
-  /\btake a look\b[\s:—-]*/gi,
-  // Whole-string remnants of rows the 500-char import column cut mid-phrase.
-  /^take a\b[\s:—-]*$/i,
-  /^take\b[\s:—-]*$/i,
-  /\bget in wholesale price\b[.!]?/gi,
-  /\bwholesale price available\b[.!]?/gi,
-];
-
-/**
- * Strip markdown, collapse whitespace, and remove import boilerplate.
+ * The rules live in `./product-copy` — the artifact catalogue outgrew this
+ * module once the full audit landed (source-shop price boilerplate, city-list
+ * spam, another shop's returns policy, HTML entities, and the dangling
+ * attributions the importer's own brand-scrubbing left behind). These two
+ * functions stay as the SEO layer's entry points.
+ *
  * Returns an empty string when nothing meaningful survives — callers treat
  * that as "no description", not as a description of "".
  */
 export function cleanCopy(input?: string | null): string {
-  if (!input) return '';
-  let text = input
-    .replace(/\r\n/g, '\n')
-    // Markdown the RichText renderer understands, flattened for plain-text use.
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/^[-*•]\s+/gm, '')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/\*([^*]+)\*/g, '$1')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  for (const pattern of JUNK_PATTERNS) {
-    text = text.replace(pattern, ' ');
-  }
-
-  return text
-    .replace(/\s+/g, ' ')
-    .replace(/^[\s:,;.—-]+/, '')
-    .trim();
+  return normalizeProductCopy(input);
 }
 
 /**
- * Remove supplier boilerplate while PRESERVING line breaks and markdown, for
- * copy that is rendered on the page (where `RichText` turns headings and
- * bullets into real structure) rather than flattened into a meta tag.
- *
- * Returns an empty string when only boilerplate was there, so callers can fall
- * back instead of rendering a stub paragraph.
+ * As {@link cleanCopy}, but preserves line breaks and markdown for copy that is
+ * rendered on the page through `<RichText>` rather than flattened into a tag.
  */
 export function stripSupplierBoilerplate(input?: string | null): string {
-  if (!input) return '';
-  let text = input.replace(/\r\n/g, '\n');
-  for (const pattern of JUNK_PATTERNS) {
-    // The `^`-anchored patterns carry no `m` flag, so they strip the lead-in
-    // once at the start of the copy rather than at the start of every line.
-    text = text.replace(pattern, '');
-  }
-  return text
-    .split('\n')
-    .map((line) => line.replace(/[ \t]+/g, ' ').trimEnd())
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return normalizeProductCopy(input, { preserveStructure: true });
 }
 
 /**
@@ -178,7 +131,7 @@ export function buildMetadata({
   ogType = 'website',
 }: BuildMetadataInput = {}): Metadata {
   const fullTitle =
-    rawTitle ?? (title ? withBrand(title) : `${siteConfig.name} — ${siteConfig.tagline}`);
+    rawTitle ?? (title ? withBrand(title) : `${siteConfig.name} — ${siteConfig.positioning}`);
   const canonical = absoluteUrl(path ?? '/');
   // A `noindex` page that also declares a canonical pointing at the homepage is
   // a contradictory pair of signals, and roughly thirty admin/account/auth

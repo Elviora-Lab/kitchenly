@@ -18,6 +18,7 @@ import { join } from 'node:path';
 
 import { Prisma, PrismaClient } from '@prisma/client';
 
+import { normalizeProductCopy } from '../src/lib/seo/product-copy';
 import { reconcileStockLedger } from './stock-ledger';
 
 const prisma = new PrismaClient();
@@ -161,7 +162,12 @@ const slugify = (s: string) =>
  * unit, rival-marketplace sentences are dropped only when other sentences
  * survive, and anything left is reduced to token removal plus tidy-up.
  */
-const SHOP_PATTERN = String.raw`smtraders(?:\.pk)?|sm\s+traders`;
+// Source shops seen across the imported datasets. A name missing from this
+// list means its whole "<Shop> has the best prices of X in Pakistan …" template
+// survives import — that is how three products shipped with a rival's city-list
+// spam intact. `normalizeProductCopy` below carries a shop-agnostic version of
+// the same template as a backstop, so a new source degrades rather than leaks.
+const SHOP_PATTERN = String.raw`smtraders(?:\.pk)?|sm\s+traders|wide\s+traders`;
 const RIVAL_PATTERN = String.raw`daraz|aliexpress|alibaba|amazon|ebay`;
 // `\b` is useless here: the source glues names onto separator runs
 // ("Chopper_______smtraders.pk") and `_` is a word character, so \b never
@@ -198,7 +204,12 @@ function sanitize(text: string | null | undefined): string | null {
   const withoutRivals = t.replace(RIVAL_SENTENCE_RE, ' ');
   if (tidy(withoutRivals)) t = withoutRivals; // never blank the field entirely
   t = t.replace(BANNED_RE, '');
-  const out = tidy(t);
+  // Shared artifact rules, applied AFTER token removal — deliberately, because
+  // `BANNED_RE` is what CREATES the worst of them: deleting the shop name from
+  // "…the Speedy Chopper by smtraders." leaves "…the Speedy Chopper by .",
+  // which is what shipped to production. The same module runs at read time, so
+  // rows imported before this fix are repaired on the way out too.
+  const out = normalizeProductCopy(tidy(t), { preserveStructure: true });
   return out || null;
 }
 

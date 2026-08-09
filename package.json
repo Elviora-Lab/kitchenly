@@ -23,6 +23,7 @@
     "db:import:smtraders": "tsx prisma/import-shop-data.ts --dataset=smtraders",
     "db:backfill:compare": "tsx prisma/backfill-compare-price.ts",
     "db:studio": "prisma studio",
+    "seo:audit-copy": "tsx scripts/seo-audit-copy.ts",
     "db:format": "prisma format",
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",

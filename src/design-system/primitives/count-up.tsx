@@ -12,9 +12,22 @@ type CountUpProps = {
 };
 
 /**
- * Animates a number from 0 to `value` the first time it scrolls into view
+ * Animates a number up to `value` the first time it scrolls into view
  * (easeOutCubic). Falls back to the final value instantly under
  * prefers-reduced-motion or without IntersectionObserver.
+ *
+ * IMPORTANT: the initial state is `value`, not 0.
+ *
+ * Starting at 0 meant the SERVER-RENDERED HTML contained "0". The homepage
+ * closing line reads "<CountUp value={productCount} suffix="+" /> essentials,
+ * one promise", so every crawler, every no-JS visitor, and every reader whose
+ * hydration had not finished saw "0+ essentials" on a store with 579 products —
+ * a live content bug that no amount of metadata work would have fixed.
+ *
+ * The animation is now opt-in per element: it only runs when the number starts
+ * BELOW the fold, i.e. the observer's first callback reports it as not yet
+ * intersecting. An element already on screen at mount keeps its real value
+ * instead of flashing to 0 and counting back up.
  */
 export function CountUp({
   value,
@@ -24,7 +37,7 @@ export function CountUp({
   prefix = '',
   className,
 }: CountUpProps) {
-  const [display, setDisplay] = useState(0);
+  const [display, setDisplay] = useState(value);
   const ref = useRef<HTMLSpanElement>(null);
   const started = useRef(false);
 
@@ -35,14 +48,25 @@ export function CountUp({
     const reduced =
       typeof window !== 'undefined' &&
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (reduced || typeof IntersectionObserver === 'undefined') {
-      setDisplay(value);
-      return;
-    }
+    // Nothing to do — `display` already holds the final value.
+    if (reduced || typeof IntersectionObserver === 'undefined') return;
 
+    // The observer fires once immediately with the current intersection state.
+    let armed = false;
     const io = new IntersectionObserver(
       (entries) => {
-        if (!entries[0]?.isIntersecting || started.current) return;
+        const visible = entries[0]?.isIntersecting ?? false;
+        if (!armed) {
+          armed = true;
+          // Already on screen at mount: leave the real number alone.
+          if (visible) {
+            io.disconnect();
+            return;
+          }
+          setDisplay(0);
+          return;
+        }
+        if (!visible || started.current) return;
         started.current = true;
         io.disconnect();
         const start = performance.now();
