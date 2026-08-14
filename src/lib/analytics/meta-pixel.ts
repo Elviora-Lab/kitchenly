@@ -1,5 +1,7 @@
 import { isProd, publicEnv } from '@/config/env';
 
+import { normalizeCurrencyCode } from '@/lib/currency';
+
 /**
  * Meta (Facebook) Pixel — thin client-side wrapper around `window.fbq`.
  *
@@ -83,7 +85,7 @@ function moneyFields(
   currency: string | undefined,
 ): Record<string, unknown> {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
-    ? { value, currency: currency ?? 'PKR' }
+    ? { value, currency: normalizeCurrencyCode(currency) }
     : {};
 }
 

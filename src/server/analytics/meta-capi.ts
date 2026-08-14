@@ -4,6 +4,8 @@ import { ParamBuilder } from 'capi-param-builder-nodejs';
 
 import { isProd, publicEnv, serverEnv } from '@/config/env';
 
+import { normalizeCurrencyCode } from '@/lib/currency';
+
 /**
  * Meta Conversions API (server-side events).
  *
@@ -117,7 +119,9 @@ function sanitizeCustomData(
 ): Record<string, unknown> | undefined {
   if (!cd || !('value' in cd)) return cd;
   const value = Number(cd.value);
-  if (Number.isFinite(value) && value > 0) return { ...cd, value };
+  if (Number.isFinite(value) && value > 0) {
+    return { ...cd, value, currency: normalizeCurrencyCode(String(cd.currency ?? '')) };
+  }
   const out = { ...cd };
   delete out.value;
   delete out.currency;
