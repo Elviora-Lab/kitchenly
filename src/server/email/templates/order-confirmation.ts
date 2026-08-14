@@ -6,12 +6,14 @@ import { formatMoney } from '@/utils/format';
 
 export function orderConfirmationEmail({
   orderNumber,
+  orderUrl,
   total,
   currency,
   savings,
   savingsLabel,
 }: {
   orderNumber: string;
+  orderUrl?: string;
   total: number;
   currency: string;
   /** Discount applied to this order, for a "you saved" line. */
@@ -19,6 +21,9 @@ export function orderConfirmationEmail({
   savingsLabel?: string | null;
 }) {
   const subject = `Your ${siteConfig.name} order ${orderNumber}`;
+  const orderLink = orderUrl
+    ? `<p style="margin-top: 32px;"><a href="${orderUrl}" style="color: #15171B; font-weight: 600;">View your order →</a></p>`
+    : '';
   const savingsLine =
     savings && savings > 0
       ? `<p style="line-height: 1.6; margin-top: 8px; color: #2e7d5b;">🎁 You saved <strong>${formatMoney(savings, currency)}</strong>${savingsLabel ? ` with ${savingsLabel}` : ''}!</p>`
@@ -30,7 +35,7 @@ export function orderConfirmationEmail({
       <p style="line-height: 1.6;">We've received order <strong>${orderNumber}</strong> and are preparing it with care. You'll get another note when it ships.</p>
       <p style="line-height: 1.6; margin-top: 16px;">Order total: <strong>${formatMoney(total, currency)}</strong></p>
       ${savingsLine}
-      <p style="margin-top: 32px;"><a href="${siteConfig.url}/account/orders" style="color: #15171B; font-weight: 600;">View your orders →</a></p>
+      ${orderLink}
     </div>
   `;
   return { subject, html };

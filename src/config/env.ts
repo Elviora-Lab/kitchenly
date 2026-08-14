@@ -25,10 +25,9 @@ const publicEnvSchema = z.object({
   // Meta (Facebook) Pixel ID. No default: an unset value must mean "no
   // tracking", never "some other store's pixel". Set per environment.
   NEXT_PUBLIC_FB_PIXEL_ID: optionalStr,
-  // "true" ⇒ load the Meta Pixel (and allow CAPI) outside production so you can
-  // verify events in Meta's Pixel Helper / Test Events. Mirrors NEXT_PUBLIC_GA_DEBUG.
-  // WARNING: browser-pixel events in dev hit the REAL pixel — pair with a CAPI
-  // test_event_code and turn this off when done. Leave blank in production.
+  // "true" ⇒ add Meta diagnostic flags in production only. Local/dev never
+  // loads the real browser pixel or CAPI because those hit production Meta
+  // infrastructure even from localhost.
   NEXT_PUBLIC_FB_PIXEL_DEBUG: optionalStr,
   // First-party clickstream: optional sampling rate (0–1) applied to each click
   // before it's queued — a safety valve if volume ever spikes. Unset/invalid ⇒

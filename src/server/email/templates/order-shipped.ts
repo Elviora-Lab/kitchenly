@@ -4,14 +4,19 @@ import { siteConfig } from '@/config/site';
 
 export function orderShippedEmail({
   orderNumber,
+  orderUrl,
   courierName,
   trackingNumber,
 }: {
   orderNumber: string;
+  orderUrl?: string;
   courierName?: string | null;
   trackingNumber?: string | null;
 }) {
   const subject = `Your ${siteConfig.name} order ${orderNumber} is on its way`;
+  const orderLink = orderUrl
+    ? `<p style="margin-top: 32px;"><a href="${orderUrl}" style="color: #15171B; font-weight: 600;">View your order →</a></p>`
+    : '';
   const trackingBlock = trackingNumber
     ? `<p style="line-height: 1.6; margin-top: 16px;">Courier: <strong>${courierName ?? '—'}</strong><br/>Tracking number: <strong style="font-family: monospace;">${trackingNumber}</strong></p>`
     : '';
@@ -21,7 +26,7 @@ export function orderShippedEmail({
       <h2 style="font-weight: 300; font-size: 28px; margin: 24px 0 8px;">It's on its way.</h2>
       <p style="line-height: 1.6;">Order <strong>${orderNumber}</strong> has shipped and is travelling to you now.</p>
       ${trackingBlock}
-      <p style="margin-top: 32px;"><a href="${siteConfig.url}/account/orders" style="color: #15171B; font-weight: 600;">View your orders →</a></p>
+      ${orderLink}
     </div>
   `;
   return { subject, html };

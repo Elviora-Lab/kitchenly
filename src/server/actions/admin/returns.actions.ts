@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { ReturnStatus } from '@prisma/client';
 import { z } from 'zod';
 
+import { publicEnv } from '@/config/env';
+
 import { prisma } from '@/lib/db';
 
 import { withAction } from '../_with-action';
@@ -81,14 +83,19 @@ export const setReturnStatus = withAction(async (input: z.infer<typeof setStatus
   }
 
   // Notify + email the customer.
-  await notifyAndEmail(rr.order.userId, rr.order.orderNumber, status);
+  await notifyAndEmail(rr.order.userId, rr.orderId, rr.order.orderNumber, status);
 
   revalidatePath('/admin/returns');
   revalidatePath(`/admin/orders/${rr.orderId}`);
   return { id, status };
 });
 
-async function notifyAndEmail(userId: string | null, orderNumber: string, status: ReturnStatus) {
+async function notifyAndEmail(
+  userId: string | null,
+  orderId: string,
+  orderNumber: string,
+  status: ReturnStatus,
+) {
   if (!userId) return;
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -101,7 +108,11 @@ async function notifyAndEmail(userId: string | null, orderNumber: string, status
     message: `Your return for order ${orderNumber} is now ${status.toLowerCase()}.`,
   });
   if (user?.email) {
-    const { subject, html, text } = returnUpdateEmail({ orderNumber, status });
+    const { subject, html, text } = returnUpdateEmail({
+      orderNumber,
+      orderUrl: `${publicEnv.NEXT_PUBLIC_SITE_URL}/checkout/success/${orderId}`,
+      status,
+    });
     await sendEmail({ to: user.email, subject, html, text });
   }
 }
