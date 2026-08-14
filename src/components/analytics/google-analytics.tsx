@@ -15,8 +15,8 @@ import { ga, GA_ID, gaDebug, gaEnabled } from '@/lib/analytics/google';
  * gtag wouldn't see them otherwise).
  *
  * Rendered in the root layout. Active in production when a Measurement ID is
- * set, OR whenever `NEXT_PUBLIC_GA_DEBUG=true` (so you can verify events in
- * GA4 DebugView from any environment).
+ * set. `NEXT_PUBLIC_GA_DEBUG=true` only adds DebugView metadata after the
+ * production gate passes; it never loads GA on localhost.
  *
  * Consent Mode: we grant all signals by default because the store has no cookie
  * banner today and already tracks unconditionally. When a CMP is added, flip
@@ -25,7 +25,7 @@ import { ga, GA_ID, gaDebug, gaEnabled } from '@/lib/analytics/google';
  * Keys page views on `usePathname` only (like `<MetaPixel />`), so a
  * query-string-only navigation (e.g. `/search?q=…`) doesn't emit a new one.
  */
-const active = Boolean(GA_ID) && (gaEnabled || gaDebug);
+const active = Boolean(GA_ID) && gaEnabled;
 
 export function GoogleAnalytics() {
   const pathname = usePathname();

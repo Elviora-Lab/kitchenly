@@ -17,11 +17,25 @@ import { metaPixel } from './meta-pixel';
  * To add another destination later (e.g. a server beacon), add it here once.
  */
 
-/** In dev, neither script loads — log the semantic event so it's still visible. */
+function redactDevPayload(payload: unknown): unknown {
+  if (!payload || typeof payload !== 'object') return payload;
+  if (Array.isArray(payload)) return payload.map(redactDevPayload);
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(payload)) {
+    if (/email|phone/i.test(key)) {
+      out[key] = value ? '[redacted]' : value;
+    } else {
+      out[key] = redactDevPayload(value);
+    }
+  }
+  return out;
+}
+
+/** In dev, neither script loads — log the semantic event without contact PII. */
 function logDev(event: string, payload?: unknown): void {
   if (isProd || typeof window === 'undefined') return;
   // eslint-disable-next-line no-console
-  console.log('[analytics]', event, payload ?? '');
+  console.log('[analytics]', event, redactDevPayload(payload) ?? '');
 }
 
 /** A fresh event id shared by the browser pixel + its CAPI twin so Meta dedupes

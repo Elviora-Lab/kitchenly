@@ -1,4 +1,4 @@
-import { requireUser } from '@/server/auth/guards';
+import { getSession } from '@/server/auth/get-session';
 import { createHandler } from '@/server/http/handler';
 import { apiSuccess } from '@/server/http/response';
 import { addressesService } from '@/server/services/addresses.service';
@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
  * `@/server/actions/checkout.actions`, not through this REST endpoint.
  */
 export const GET = createHandler(async (req) => {
-  const session = await requireUser(req);
-  const addresses = await addressesService.list(session.sub);
+  const session = await getSession(req);
+  const addresses = session ? await addressesService.list(session.sub) : [];
   return apiSuccess({ addresses });
 });
