@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 
+import { publicEnv } from '@/config/env';
+
 import { prisma } from '@/lib/db';
 
 import { withAction } from './_with-action';
@@ -68,6 +70,7 @@ export const requestReturn = withAction(async (input: z.infer<typeof requestRetu
   if (order.user?.email) {
     const { subject, html, text } = returnUpdateEmail({
       orderNumber: order.orderNumber,
+      orderUrl: `${publicEnv.NEXT_PUBLIC_SITE_URL}/checkout/success/${orderId}`,
       status: 'REQUESTED',
     });
     await sendEmail({ to: order.user.email, subject, html, text });

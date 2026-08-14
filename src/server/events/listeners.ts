@@ -40,6 +40,8 @@ async function orderRecipient(orderId: string) {
 // process even if this module is evaluated in more than one bundle context.
 const globalForListeners = globalThis as unknown as { __kitchenlyListenersReady?: boolean };
 
+const publicOrderUrl = (orderId: string) => `${siteConfig.url}/checkout/success/${orderId}`;
+
 /**
  * Wire domain-event listeners exactly once per server instance. Invoked from
  * `instrumentation.ts` at startup. Handlers are best-effort — the bus catches
@@ -98,6 +100,7 @@ export function registerEventListeners() {
     if (recipient) {
       const { subject, html } = orderConfirmationEmail({
         orderNumber: order.orderNumber,
+        orderUrl: publicOrderUrl(orderId),
         total,
         currency,
         savings: Number(order.discountAmount),
@@ -138,6 +141,7 @@ export function registerEventListeners() {
     if (order.email) {
       const { subject, html } = orderShippedEmail({
         orderNumber: order.orderNumber,
+        orderUrl: publicOrderUrl(orderId),
         courierName: shipment?.courierName,
         trackingNumber: shipment?.trackingNumber,
       });
@@ -159,7 +163,11 @@ export function registerEventListeners() {
     if (order.email) {
       // Signed, no-login review link (verified purchase) so guests can review.
       const reviewUrl = `${siteConfig.url}/review?token=${await signReviewToken(orderId)}`;
-      const { subject, html } = orderDeliveredEmail({ orderNumber: order.orderNumber, reviewUrl });
+      const { subject, html } = orderDeliveredEmail({
+        orderNumber: order.orderNumber,
+        orderUrl: publicOrderUrl(orderId),
+        reviewUrl,
+      });
       await sendEmail({ to: order.email, subject, html });
     }
   });

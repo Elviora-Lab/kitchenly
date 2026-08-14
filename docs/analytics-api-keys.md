@@ -76,11 +76,14 @@ presence only**, not `isProd` — they read data, they never write events.
 `NODE_ENV` is used in only two places: `next.config.ts:13` (dev-only CSP
 `'unsafe-eval'`) and `src/store/index.ts:29` (Redux devtools).
 
-### The one escape hatch
+### Debug flags
 
-`NEXT_PUBLIC_GA_DEBUG=true` bypasses the production gate and loads GA in **any**
-environment (`src/components/analytics/google-analytics.tsx:28`). This is
-deliberate — it exists for GA4 DebugView. **Do not set it locally.**
+`NEXT_PUBLIC_GA_DEBUG=true` no longer bypasses the production gate. It only adds
+`debug_mode` after GA has already passed the production-only check. Likewise,
+`NEXT_PUBLIC_FB_PIXEL_DEBUG=true` never loads Meta Pixel or CAPI locally.
+
+Local development should stay quiet even if someone accidentally leaves a debug
+flag in `.env`.
 
 ## Fixed: hardcoded Elviora IDs
 

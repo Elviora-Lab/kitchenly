@@ -72,6 +72,7 @@ export const bulkUpdateOrderStatus = withAction(async (input: z.infer<typeof bul
 
 /** Book an order with PostEx, store the tracking number, and mark it shipped. */
 const orderIdInput = z.object({ orderId: z.string().uuid() });
+const PAYMENT_CLOSED_TO_SETTLEMENT = new Set(['REFUNDED', 'PARTIALLY_REFUNDED', 'VOIDED']);
 
 export const bookWithPostEx = withAction(async (input: { orderId: string }) => {
   const { orderId } = orderIdInput.parse(input);
@@ -300,7 +301,21 @@ export const refreshPostExPayment = withAction(async (input: { orderId: string }
   const settlement = await getPostExPaymentStatus(trackingNumber);
 
   if (settlement.settled && order.paymentStatus !== 'PAID') {
+    if (PAYMENT_CLOSED_TO_SETTLEMENT.has(order.paymentStatus)) {
+      throw new BadRequestError('Refunded or voided orders cannot be marked paid');
+    }
+
     await prisma.$transaction(async (tx) => {
+      const current = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { paymentStatus: true },
+      });
+      if (!current) throw new NotFoundError('Order not found');
+      if (current.paymentStatus === 'PAID') return;
+      if (PAYMENT_CLOSED_TO_SETTLEMENT.has(current.paymentStatus)) {
+        throw new BadRequestError('Refunded or voided orders cannot be marked paid');
+      }
+
       const settled = await tx.payment.updateMany({
         where: { orderId, paymentStatus: { in: ['PENDING', 'AUTHORIZED', 'FAILED'] } },
         data: { paymentStatus: 'PAID', paidAt: new Date() },
