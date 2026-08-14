@@ -3,6 +3,7 @@ import 'server-only';
 import { type PaymentMethod, Prisma } from '@prisma/client';
 import { customAlphabet } from 'nanoid';
 
+import { normalizeCurrencyCode } from '@/lib/currency';
 import { prisma } from '@/lib/db';
 import { computeCheckoutTotals } from '@/lib/shipping';
 
@@ -88,7 +89,7 @@ export const ordersService = {
         if (!owns) throw new NotFoundError('Cart not found');
         if (cart.items.length === 0) throw new BadRequestError('Cart is empty');
 
-        const currency = opts.currency ?? 'PKR';
+        const currency = normalizeCurrencyCode(opts.currency);
 
         // Re-derive every line price from the live catalog + flash sale INSIDE
         // the transaction. `cart_items.price` is only a snapshot taken at
