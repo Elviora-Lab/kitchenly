@@ -41,15 +41,9 @@ import { promotionsService } from '@/server/services/promotions.service';
  * cluster; it just does not define the site.
  */
 export const metadata = buildMetadata({
-  // "Online in Pakistan" over a bare "in Pakistan": the modifier matches how
-  // the commercial queries are actually typed ("home products online pakistan",
-  // "online shopping pakistan"), and the head term stays at the front where it
-  // carries most weight. At 66 characters the trailing brand may be clipped in
-  // desktop SERPs — an accepted trade, since brand queries resolve on the
-  // domain and Organization schema rather than on the title tag.
-  title: 'Home, Kitchen & Everyday Essentials Online in Pakistan',
+  title: 'Home & Kitchen Essentials Online in Pakistan',
   description:
-    'Shop practical home, kitchen and everyday essentials online in Pakistan — organizers, gadgets, baby, beauty and decor. Cash on delivery, free over Rs 8,000.',
+    'Shop home, kitchen and everyday essentials in Pakistan — organizers, gadgets, baby, beauty and decor. Cash on delivery, free over Rs 8,000.',
   path: '/',
   keywords: [...siteConfig.keywords],
 });

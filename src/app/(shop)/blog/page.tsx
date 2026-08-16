@@ -10,9 +10,9 @@ import { Section, SectionHeading } from '@/design-system/primitives/section';
 import { blogRepo } from '@/server/repositories/blog.repo';
 
 export const metadata = buildMetadata({
-  title: 'Home Guides — Organization & Kitchen Tips for Pakistani Homes',
+  title: 'Home Organization & Kitchen Guides',
   description:
-    'Practical home guides from Kitchenly — closet and kitchen organization ideas, storage tips, and product know-how, with links to the products that solve each problem.',
+    'Practical Kitchenly guides for home organization, kitchen storage, cleaning, and product know-how for Pakistani homes.',
   path: '/blog',
 });
 

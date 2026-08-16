@@ -16,9 +16,9 @@ import { categoriesService } from '@/server/services/categories.service';
 import { productsService } from '@/server/services/products.service';
 
 export const metadata = buildMetadata({
-  title: 'Shop by Category — Home, Kitchen & Everyday Essentials',
+  title: 'Shop by Category',
   description:
-    'Browse every Kitchenly category — kitchen accessories, home and living, wardrobe organizers, beauty, gadgets, decor, baby and mobile accessories.',
+    'Browse Kitchenly categories — kitchen accessories, home and living, wardrobe organizers, beauty, gadgets, decor, baby and mobile accessories.',
   path: '/categories',
 });
 
