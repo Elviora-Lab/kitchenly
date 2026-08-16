@@ -24,6 +24,7 @@ import { normalizeProductCopy } from './product-copy';
 // so we prefer a complete product name over a mangled one.
 const TITLE_BUDGET = 60;
 const BRAND_SUFFIX = ` | ${siteConfig.name}`;
+const DEFAULT_OG_IMAGE = absoluteUrl('/opengraph-image');
 /** Longest a product name may run before we clamp it at a word boundary. */
 const NAME_CLAMP = 70;
 const DESCRIPTION_BUDGET = 155;
@@ -139,13 +140,12 @@ export function buildMetadata({
   // default. When a page is both noindex and hasn't named its own URL, emit no
   // canonical at all rather than a wrong one.
   const declareCanonical = path !== undefined || !noIndex;
-  // Only set an explicit image (e.g. a product photo). When none is given we
-  // omit `images` so Next's file-based `opengraph-image` (the branded card)
-  // supplies it — pointing at a hardcoded path that doesn't exist just yields
-  // broken share previews.
-  const explicitImages = image
-    ? [{ url: image, width: 1200, height: 630, alt: fullTitle }]
-    : undefined;
+  // Always emit a share image. Product pages pass their product photo; all
+  // other pages use the generated /opengraph-image route, which exists and is
+  // cheap to cache. Relying on file-based discovery alone left non-product
+  // pages without `og:image` in production HTML.
+  const shareImage = image ?? DEFAULT_OG_IMAGE;
+  const shareImages = [{ url: shareImage, width: 1200, height: 630, alt: fullTitle }];
 
   return {
     metadataBase: new URL(SITE_URL),
@@ -164,13 +164,13 @@ export function buildMetadata({
       url: canonical,
       // OG spec wants an underscore locale (en_PK), not the BCP-47 hyphen form.
       locale: siteConfig.locale.replace('-', '_'),
-      ...(explicitImages ? { images: explicitImages } : {}),
+      images: shareImages,
     },
     twitter: {
       card: 'summary_large_image',
       title: fullTitle,
       description,
-      ...(image ? { images: [image] } : {}),
+      images: [shareImage],
     },
     robots: noIndex
       ? // `follow` stays on: these pages (cart, search, single-brand listing)

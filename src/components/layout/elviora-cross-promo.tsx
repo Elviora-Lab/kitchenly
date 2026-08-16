@@ -13,12 +13,13 @@ export function ElvioraCrossPromo({ className }: ElvioraCrossPromoProps) {
   return (
     <aside
       aria-label="Elviora beauty promotion"
+      data-nosnippet=""
       className={cn('border-b border-[#f2c67d]/25 bg-[#15100d] text-[#fff8ed]', className)}
     >
       <Link
         href={ELVIORA_URL}
         target="_blank"
-        rel="noopener noreferrer"
+        rel="noopener noreferrer sponsored"
         className="group flex min-h-9 items-center justify-center px-4 text-center text-[11px] font-semibold tracking-[0.08em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#f2c67d]"
         data-track="cta"
         data-track-label="elviora-cross-promo"

@@ -207,6 +207,20 @@ describe('buildMetadata canonicals', () => {
   it('keeps noindex pages followable so their outbound links still count', () => {
     expect(buildMetadata({ noIndex: true }).robots).toMatchObject({ index: false, follow: true });
   });
+
+  it('emits a default share image when a page does not provide one', () => {
+    const meta = buildMetadata({ title: 'Guides', path: '/blog' });
+
+    expect(meta.openGraph?.images).toEqual([
+      {
+        url: absoluteUrl('/opengraph-image'),
+        width: 1200,
+        height: 630,
+        alt: 'Guides | Kitchenly',
+      },
+    ]);
+    expect(meta.twitter?.images).toEqual([absoluteUrl('/opengraph-image')]);
+  });
 });
 
 describe('entity signals', () => {

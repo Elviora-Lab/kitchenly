@@ -16,7 +16,7 @@ import { brandsService } from '@/server/services/brands.service';
 import { productsService } from '@/server/services/products.service';
 
 const LIST_DESCRIPTION =
-  'Shop the full Kitchenly range online in Pakistan — kitchen accessories, home and living, organizers, gadgets, beauty, baby and decor. Cash on delivery nationwide.';
+  'Shop Kitchenly products online in Pakistan — kitchen accessories, home organizers, gadgets, beauty, baby and decor. Cash on delivery nationwide.';
 
 /**
  * Per-page canonical. Page 2+ points at itself rather than collapsing onto
@@ -31,7 +31,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const sp = await searchParams;
   const page = Math.max(1, Number(str(sp.page)) || 1);
-  const base = 'All Products — Home, Kitchen & Everyday Essentials in Pakistan';
+  const base = 'All Products Online in Pakistan';
   return buildMetadata({
     title: page > 1 ? `${base} — Page ${page}` : base,
     description: LIST_DESCRIPTION,
