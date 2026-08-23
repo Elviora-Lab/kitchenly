@@ -3,6 +3,11 @@ import 'server-only';
 import type { Prisma } from '@prisma/client';
 
 import { prisma } from '@/lib/db';
+import {
+  type CanonicalProductListSort,
+  normalizeProductSort,
+  type ProductListSort,
+} from '@/lib/products/sort';
 
 export type ProductListFilters = {
   category?: string; // slug
@@ -16,8 +21,6 @@ export type ProductListFilters = {
   tag?: string; // tag slug
 };
 
-export type ProductListSort = 'newest' | 'price-asc' | 'price-desc' | 'popular' | 'rating';
-
 /**
  * Escape LIKE/ILIKE wildcards in user search input — Prisma's `contains`
  * passes `%`/`_` through, so an unescaped `%` would match the entire catalog.
@@ -26,13 +29,19 @@ function escapeLike(input: string): string {
   return input.replace(/[\\%_]/g, '\\$&');
 }
 
-const SORT_MAP: Record<ProductListSort, Prisma.ProductOrderByWithRelationInput[]> = {
-  newest: [{ createdAt: 'desc' }],
+const SORT_MAP: Record<CanonicalProductListSort, Prisma.ProductOrderByWithRelationInput[]> = {
+  'newly-added': [{ createdAt: 'desc' }, { id: 'desc' }],
   'price-asc': [{ price: 'asc' }],
   'price-desc': [{ price: 'desc' }],
-  // Real engagement first (tracked product views), then the merchandised
-  // bestseller flag, then recency as a stable tiebreak.
-  popular: [{ viewLogs: { _count: 'desc' } }, { isFeatured: 'desc' }, { createdAt: 'desc' }],
+  // Merchandised bestsellers first, then proven sales, then browsing demand.
+  // The old "popular" alias still lands here, but the visible feature is
+  // intentionally "Best sellers", not "most viewed".
+  'best-sellers': [
+    { isFeatured: 'desc' },
+    { orderItems: { _count: 'desc' } },
+    { viewLogs: { _count: 'desc' } },
+    { createdAt: 'desc' },
+  ],
   // Review volume as the rating proxy — Prisma can't order by relation
   // average; switch to a materialized rating column if one lands.
   rating: [{ reviews: { _count: 'desc' } }, { createdAt: 'desc' }],
@@ -40,6 +49,7 @@ const SORT_MAP: Record<ProductListSort, Prisma.ProductOrderByWithRelationInput[]
 
 export const productsRepo = {
   async list(filters: ProductListFilters, sort: ProductListSort, skip: number, take: number) {
+    const canonicalSort = normalizeProductSort(sort);
     const where: Prisma.ProductWhereInput = {
       isActive: true,
       // Match against the full category membership (product_categories), not
@@ -94,7 +104,7 @@ export const productsRepo = {
     const [items, total] = await Promise.all([
       prisma.product.findMany({
         where,
-        orderBy: SORT_MAP[sort],
+        orderBy: SORT_MAP[canonicalSort],
         skip,
         take,
         include: {

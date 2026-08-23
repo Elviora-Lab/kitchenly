@@ -59,7 +59,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
     categoriesService.list().catch(() => []),
     linkedSlugs[0]
       ? productsService
-          .list({ category: linkedSlugs[0] }, 'popular', 1, 4)
+          .list({ category: linkedSlugs[0] }, 'best-sellers', 1, 4)
           .then((r) => r.items)
           .catch(() => [])
       : Promise.resolve([]),

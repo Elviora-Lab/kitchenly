@@ -39,7 +39,7 @@ export default async function CategoriesIndexPage() {
   const counts = await Promise.all(
     merchandising.map((c) =>
       productsService
-        .list({ category: c.slug }, 'newest', 1, 1)
+        .list({ category: c.slug }, 'newly-added', 1, 1)
         .then((r) => r.total)
         .catch(() => 0),
     ),

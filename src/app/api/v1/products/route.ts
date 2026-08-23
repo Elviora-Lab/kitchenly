@@ -1,3 +1,5 @@
+import { normalizeProductSort } from '@/lib/products/sort';
+
 import { analyticsServer } from '@/server/analytics';
 import { getSession } from '@/server/auth/get-session';
 import { createHandler } from '@/server/http/handler';
@@ -24,7 +26,7 @@ export const GET = createHandler(async (req) => {
       concern: q.concern,
       tag: q.tag,
     },
-    q.sort ?? 'newest',
+    normalizeProductSort(q.sort),
     pg.page,
     pg.pageSize,
   );

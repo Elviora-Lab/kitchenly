@@ -3,11 +3,13 @@
 import { useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+import { normalizeProductSort } from '@/lib/products/sort';
+
 import { Button } from '@/components/ui/button';
 
 const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest' },
-  { value: 'popular', label: 'Most loved' },
+  { value: 'newly-added', label: 'Newly added' },
+  { value: 'best-sellers', label: 'Best sellers' },
   { value: 'rating', label: 'Top rated' },
   { value: 'price-asc', label: 'Price — low to high' },
   { value: 'price-desc', label: 'Price — high to low' },
@@ -23,7 +25,7 @@ export type BrandOption = { name: string; slug: string };
 export function ProductFilters({ brands = [] }: { brands?: BrandOption[] }) {
   const router = useRouter();
   const search = useSearchParams();
-  const activeSort = search.get('sort') ?? 'newest';
+  const activeSort = normalizeProductSort(search.get('sort'));
   const activeBrand = search.get('brand');
 
   const setParam = useCallback(

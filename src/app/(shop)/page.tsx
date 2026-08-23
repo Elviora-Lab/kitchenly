@@ -82,11 +82,11 @@ export default async function HomePage() {
     spendTiers,
     flashSale,
   ] = await Promise.all([
-    productsService.list({}, 'popular', 1, 8).catch(() => ({ items: [], total: 0 })),
-    productsService.list({}, 'newest', 1, 8).catch(() => ({ items: [], total: 0 })),
+    productsService.list({}, 'best-sellers', 1, 8).catch(() => ({ items: [], total: 0 })),
+    productsService.list({}, 'newly-added', 1, 8).catch(() => ({ items: [], total: 0 })),
     categoriesService.tree().catch(() => []),
     productsService
-      .list({ category: 'best-selling' }, 'newest', 1, 4)
+      .list({ category: 'best-selling' }, 'newly-added', 1, 4)
       .catch(() => ({ items: [], total: 0 })),
     getShowcaseReviews(12).catch(() => []),
     reviewsRepo.globalSummary().catch(() => ({ average: 0, count: 0 })),
@@ -104,7 +104,7 @@ export default async function HomePage() {
       c.image
         ? Promise.resolve(c.image)
         : productsService
-            .list({ category: c.slug }, 'popular', 1, 1)
+            .list({ category: c.slug }, 'best-sellers', 1, 1)
             .then((r) => r.items[0]?.imageUrl ?? null)
             .catch(() => null),
     ),
@@ -203,7 +203,7 @@ export default async function HomePage() {
 
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
               <Button asChild size="xl" variant="cta" uppercase className="w-full sm:w-auto">
-                <Link href="/products?sort=popular">
+                <Link href="/products?sort=best-sellers">
                   Shop best sellers <ArrowRight className="size-4" />
                 </Link>
               </Button>
@@ -312,7 +312,7 @@ export default async function HomePage() {
                 description="Ranked by real orders — the things customers come back for."
               />
               <Link
-                href="/products?sort=popular"
+                href="/products?sort=best-sellers"
                 className="text-sm font-semibold text-accent underline-offset-4 hover:underline"
               >
                 See the full ledger →
@@ -352,7 +352,7 @@ export default async function HomePage() {
                     )),
                   <EndCap
                     key="endcap"
-                    href="/products?sort=popular"
+                    href="/products?sort=best-sellers"
                     label={`See all ${productCount.toLocaleString('en-US')}`}
                   />,
                 ]}
@@ -394,7 +394,7 @@ export default async function HomePage() {
                 description="The newest additions to the shelf."
               />
               <Link
-                href="/products?sort=newest"
+                href="/products?sort=newly-added"
                 className="text-sm font-semibold text-accent underline-offset-4 hover:underline"
               >
                 Everything new →
@@ -430,7 +430,7 @@ export default async function HomePage() {
                         index={i}
                       />
                     )),
-                  <EndCap key="endcap" href="/products?sort=newest" label="View all new" />,
+                  <EndCap key="endcap" href="/products?sort=newly-added" label="View all new" />,
                 ]}
               </SnapRail>
             </div>

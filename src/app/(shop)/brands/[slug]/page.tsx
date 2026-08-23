@@ -2,6 +2,11 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 
+import {
+  normalizeProductSort,
+  PRODUCT_SORT_VALUES,
+  type ProductListSort,
+} from '@/lib/products/sort';
 import { breadcrumbJsonLd } from '@/lib/seo/json-ld';
 import { JsonLd } from '@/lib/seo/json-ld-component';
 import { buildMetadata } from '@/lib/seo/metadata';
@@ -14,14 +19,12 @@ import { ProductFilters } from '@/features/products/components/product-filters';
 
 import { CatalogPagination } from '../../_components/catalog-pagination';
 
-import { type ProductListSort } from '@/server/repositories/products.repo';
 import { brandsService } from '@/server/services/brands.service';
 import { productsService } from '@/server/services/products.service';
 
 type Params = Promise<{ slug: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-const SORTS: ProductListSort[] = ['newest', 'popular', 'rating', 'price-asc', 'price-desc'];
 const str = (v: string | string[] | undefined) => (typeof v === 'string' ? v : undefined);
 const PAGE_SIZE = 24;
 
@@ -61,9 +64,9 @@ export default async function BrandPage({
   const sp = await searchParams;
 
   const sortParam = str(sp.sort);
-  const sort: ProductListSort = SORTS.includes(sortParam as ProductListSort)
-    ? (sortParam as ProductListSort)
-    : 'newest';
+  const sort: ProductListSort = PRODUCT_SORT_VALUES.includes(sortParam as ProductListSort)
+    ? normalizeProductSort(sortParam)
+    : 'newly-added';
   const page = Math.max(1, Number(str(sp.page)) || 1);
 
   // The product list is keyed by slug, not by the brand row — start both
