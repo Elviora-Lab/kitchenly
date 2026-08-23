@@ -38,8 +38,8 @@ export const categoryNav: NavItem[] = CATEGORY_TREE.map((cat) => ({
 // Promotional shortcuts — sort views over the whole catalog. Shown as compact
 // links on the right of the desktop bar; folded into the mobile drawer.
 export const quickLinks: NavItem[] = [
-  { label: 'Best Sellers', href: '/products?sort=popular' },
-  { label: 'New Arrivals', href: '/products?sort=newest' },
+  { label: 'Best Sellers', href: '/products?sort=best-sellers' },
+  { label: 'New Arrivals', href: '/products?sort=newly-added' },
 ];
 
 // Desktop primary row (left side): every category, then Home Guides.
@@ -60,8 +60,8 @@ export const footerNav: Record<string, NavItem[]> = {
   Shop: [
     { label: 'All Products', href: '/products' },
     { label: 'Shop by Category', href: '/categories' },
-    { label: 'New Arrivals', href: '/products?sort=newest' },
-    { label: 'Best Sellers', href: '/products?sort=popular' },
+    { label: 'New Arrivals', href: '/products?sort=newly-added' },
+    { label: 'Best Sellers', href: '/products?sort=best-sellers' },
     { label: 'Home Guides', href: '/blog' },
     { label: 'Gift Cards', href: '/gift-cards' },
   ],

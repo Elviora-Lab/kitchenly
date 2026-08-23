@@ -3,6 +3,11 @@ import type { Metadata } from 'next';
 import { categorySeo, MIN_INDEXABLE_PRODUCTS } from '@/config/category-seo';
 import { routes } from '@/config/routes';
 
+import {
+  normalizeProductSort,
+  PRODUCT_SORT_VALUES,
+  type ProductListSort,
+} from '@/lib/products/sort';
 import { breadcrumbJsonLd, collectionPageJsonLd } from '@/lib/seo/json-ld';
 import { JsonLd } from '@/lib/seo/json-ld-component';
 import { buildMetadata, generateCategoryMetadata } from '@/lib/seo/metadata';
@@ -22,7 +27,6 @@ import { ProductFilters } from '@/features/products/components/product-filters';
 import { CatalogPagination } from '../../_components/catalog-pagination';
 
 import { blogRepo } from '@/server/repositories/blog.repo';
-import { type ProductListSort } from '@/server/repositories/products.repo';
 import { brandsService } from '@/server/services/brands.service';
 import { categoriesService } from '@/server/services/categories.service';
 import { productsService } from '@/server/services/products.service';
@@ -30,7 +34,6 @@ import { productsService } from '@/server/services/products.service';
 type Params = Promise<{ slug: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-const SORTS: ProductListSort[] = ['newest', 'popular', 'rating', 'price-asc', 'price-desc'];
 const str = (v: string | string[] | undefined) => (typeof v === 'string' ? v : undefined);
 const PAGE_SIZE = 24;
 
@@ -53,7 +56,9 @@ export async function generateMetadata({
   const [category, listing] = await Promise.all([
     categoriesService.getBySlug(slug).catch(() => null),
     // Only the total is needed here, so ask for a single row.
-    productsService.list({ category: slug }, 'newest', 1, 1).catch(() => ({ items: [], total: 0 })),
+    productsService
+      .list({ category: slug }, 'newly-added', 1, 1)
+      .catch(() => ({ items: [], total: 0 })),
   ]);
   const name = category?.name ?? prettify(slug);
   const seo = categorySeo(slug);
@@ -90,9 +95,9 @@ export default async function CategoryPage({
   const sp = await searchParams;
 
   const sortParam = str(sp.sort);
-  const sort: ProductListSort = SORTS.includes(sortParam as ProductListSort)
-    ? (sortParam as ProductListSort)
-    : 'newest';
+  const sort: ProductListSort = PRODUCT_SORT_VALUES.includes(sortParam as ProductListSort)
+    ? normalizeProductSort(sortParam)
+    : 'newly-added';
   const page = Math.max(1, Number(str(sp.page)) || 1);
   const seo = categorySeo(slug);
 

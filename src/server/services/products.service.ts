@@ -1,15 +1,13 @@
 import 'server-only';
 
+import { type ProductListSort } from '@/lib/products/sort';
+
 import { toProductCard } from './_mappers/product.mapper';
 
 import { cache } from '@/server/cache';
 import { events } from '@/server/events';
 import { NotFoundError } from '@/server/http/errors';
-import {
-  type ProductListFilters,
-  type ProductListSort,
-  productsRepo,
-} from '@/server/repositories/products.repo';
+import { type ProductListFilters, productsRepo } from '@/server/repositories/products.repo';
 
 // Product lists are the hottest read path (homepage fires 3–7, catalog +
 // category + brand pages one each). The rows change rarely relative to how

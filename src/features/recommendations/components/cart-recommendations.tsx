@@ -8,7 +8,7 @@ import { useCart } from '@/features/cart/hooks/use-cart';
 import { useListProductsQuery } from '@/features/products/api/products-api';
 
 /**
- * "You may also like" cross-sell for the cart — surfaces popular products that
+ * "You may also like" cross-sell for the cart — surfaces best-selling products that
  * aren't already in the bag, to lift average order value. Client-side so it
  * reacts to whatever is currently in the cart.
  */
@@ -22,7 +22,7 @@ export function CartRecommendations({
   heading?: string;
 }) {
   const { cart } = useCart();
-  const { data } = useListProductsQuery({ sort: 'popular', pageSize: 12 });
+  const { data } = useListProductsQuery({ sort: 'best-sellers', pageSize: 12 });
 
   const inCart = new Set(cart.lines.map((l) => l.productId));
   const recs = (data?.items ?? []).filter((p) => !inCart.has(p.id)).slice(0, limit);

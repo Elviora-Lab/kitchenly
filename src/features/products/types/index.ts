@@ -1,3 +1,5 @@
+import type { ProductListSort as SortValue } from '@/lib/products/sort';
+
 import type { ProductCardData } from '@/design-system/patterns/product-card';
 
 export type ProductVariant = {
@@ -36,7 +38,7 @@ export type ProductListQuery = {
   pageSize?: number;
   category?: string;
   q?: string;
-  sort?: 'newest' | 'price-asc' | 'price-desc' | 'popular' | 'rating';
+  sort?: SortValue;
   priceMin?: number;
   priceMax?: number;
   skinType?: string;

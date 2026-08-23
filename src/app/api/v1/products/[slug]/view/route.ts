@@ -1,10 +1,11 @@
 import { prisma } from '@/lib/db';
 
+import { analyticsServer } from '@/server/analytics';
 import { getSession } from '@/server/auth/get-session';
-import { events } from '@/server/events';
 import { createHandler } from '@/server/http/handler';
 import { clientIp, isRateLimited } from '@/server/http/rate-limit';
 import { apiSuccess } from '@/server/http/response';
+import { productsService } from '@/server/services/products.service';
 
 export const runtime = 'nodejs';
 
@@ -23,7 +24,10 @@ export const POST = createHandler(async (req, ctx: { params: Promise<{ slug: str
   const product = await prisma.product.findUnique({ where: { slug }, select: { id: true } });
   if (product) {
     const session = await getSession(req);
-    events.emit('product.viewed', { productId: product.id, userId: session?.sub ?? null });
+    const userId = session?.sub ?? null;
+    await analyticsServer.productView(product.id, userId);
+    if (userId) await analyticsServer.recordRecentlyViewed(userId, product.id);
+    await productsService.invalidateLists();
   }
   return apiSuccess({ ok: true });
 });
