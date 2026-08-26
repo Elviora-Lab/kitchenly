@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import Script from 'next/script';
 
-import { FB_PIXEL_ID, pixelEnabled } from '@/lib/analytics/meta-pixel';
+import { FB_PIXEL_ID, flushQueuedPixelEvents, pixelEnabled } from '@/lib/analytics/meta-pixel';
 
 /**
  * Meta (Facebook) Pixel base code.
@@ -20,6 +20,7 @@ export function MetaPixel() {
 
   useEffect(() => {
     if (!pixelEnabled) return;
+    flushQueuedPixelEvents();
     // The base snippet already fires PageView on first load — skip that first
     // run so it isn't double-counted, then fire on every subsequent route.
     if (!initialised.current) {
@@ -34,10 +35,8 @@ export function MetaPixel() {
   return (
     <>
       {/* `afterInteractive`, not `lazyOnload`: lazyOnload waits for the full load
-          event, so a shopper who bounces or navigates quickly is never counted —
-          and every ViewContent/AddToCart before it lands is dropped, since the
-          helpers no-op until `fbq` exists. */}
-      <Script id="meta-pixel-base" strategy="afterInteractive">
+          event, so a shopper who bounces or navigates quickly is never counted. */}
+      <Script id="meta-pixel-base" strategy="afterInteractive" onReady={flushQueuedPixelEvents}>
         {`!function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};
