@@ -297,6 +297,7 @@ export const analytics = {
       value: p.value,
       currency: p.currency,
       items: p.count,
+      contentIds: p.items?.map((i) => i.item_id).filter(Boolean),
     });
     ga.purchase({
       orderId: p.orderId,

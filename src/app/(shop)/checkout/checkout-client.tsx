@@ -132,20 +132,29 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
     return () => clearTimeout(timer);
   }, [destinationCity]);
 
-  // Analytics: fire begin-checkout once when the checkout loads with items
-  // (Meta InitiateCheckout + GA4 begin_checkout with line items).
+  // Analytics: fire begin-checkout + default payment method once when checkout
+  // loads (Meta InitiateCheckout / AddPaymentInfo + GA4 begin_checkout).
   useEffect(() => {
     if (cart.lines.length === 0) return;
+    const lineItems = cart.lines.map((l) => ({
+      item_id: l.productId,
+      item_name: l.name,
+      price: l.unitPrice,
+      quantity: l.quantity,
+    }));
     analytics.beginCheckout({
       value: total,
       currency: cart.currency,
       count: totalQuantity,
-      items: cart.lines.map((l) => ({
-        item_id: l.productId,
-        item_name: l.name,
-        price: l.unitPrice,
-        quantity: l.quantity,
-      })),
+      items: lineItems,
+    });
+    // COD is the default — shoppers who never click a payment tile still get
+    // AddPaymentInfo (and its deduped CAPI twin) in the funnel.
+    analytics.addPaymentInfo({
+      value: total,
+      currency: cart.currency,
+      method: 'COD',
+      items: lineItems,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -165,6 +174,7 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
   }
 
   function choosePayment(method: PaymentMethod) {
+    if (method === paymentMethod) return;
     setPaymentMethod(method);
     // Selecting a method is "adding payment info" for COD/bank. Pass line items
     // so the deduped CAPI twin carries content_ids for content matching.

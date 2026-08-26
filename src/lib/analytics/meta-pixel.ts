@@ -163,10 +163,21 @@ export const metaPixel = {
 
   /** Purchase — pass the order id as `eventID` so the browser event dedupes
    * against the server-side Conversions API Purchase. */
-  purchase: (p: { orderId: string; value: number; currency: string; items: number }) =>
+  purchase: (p: {
+    orderId: string;
+    value: number;
+    currency: string;
+    items: number;
+    contentIds?: string[];
+  }) =>
     fbTrack(
       'Purchase',
-      { ...moneyFields(p.value, p.currency), num_items: p.items, content_type: 'product' },
+      {
+        ...moneyFields(p.value, p.currency),
+        num_items: p.items,
+        content_type: 'product',
+        ...(p.contentIds?.length ? { content_ids: p.contentIds } : {}),
+      },
       { eventID: p.orderId },
     ),
 

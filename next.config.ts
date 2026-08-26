@@ -17,7 +17,7 @@ const CSP = [
   "object-src 'none'",
   "form-action 'self' https://www.facebook.com",
   "frame-ancestors 'none'",
-  `script-src 'self' 'unsafe-inline'${isDevBuild ? " 'unsafe-eval'" : ''} https://www.googletagmanager.com https://*.google-analytics.com https://connect.facebook.net https://www.clarity.ms https://*.clarity.ms`,
+  `script-src 'self' 'unsafe-inline'${isDevBuild ? " 'unsafe-eval'" : ''} https://www.googletagmanager.com https://*.google-analytics.com https://connect.facebook.net https://www.facebook.com https://www.clarity.ms https://*.clarity.ms`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
