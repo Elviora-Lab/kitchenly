@@ -11,6 +11,8 @@ import {
 } from '@/lib/ads/date-presets';
 import { cn } from '@/lib/cn';
 
+import { AdsRefreshButton } from './ads-refresh-button';
+
 const SUB_TABS = [
   { label: 'Overview', href: '/admin/ads' },
   { label: 'Funnel', href: '/admin/ads/funnel' },
@@ -53,23 +55,26 @@ export function AdsNav() {
         ))}
       </nav>
 
-      <nav className="flex flex-wrap gap-1" aria-label="Date range">
-        {AD_RANGE_TABS.map((preset) => (
-          <Link
-            key={preset}
-            href={`${pathname}?range=${preset}`}
-            aria-current={preset === range ? 'true' : undefined}
-            className={cn(
-              'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-              preset === range
-                ? 'bg-muted text-foreground ring-1 ring-inset ring-border'
-                : 'text-muted-foreground hover:bg-muted/70',
-            )}
-          >
-            {AD_DATE_PRESET_LABELS[preset]}
-          </Link>
-        ))}
-      </nav>
+      <div className="flex flex-wrap items-center gap-2">
+        <nav className="flex flex-wrap gap-1" aria-label="Date range">
+          {AD_RANGE_TABS.map((preset) => (
+            <Link
+              key={preset}
+              href={`${pathname}?range=${preset}`}
+              aria-current={preset === range ? 'true' : undefined}
+              className={cn(
+                'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                preset === range
+                  ? 'bg-muted text-foreground ring-1 ring-inset ring-border'
+                  : 'text-muted-foreground hover:bg-muted/70',
+              )}
+            >
+              {AD_DATE_PRESET_LABELS[preset]}
+            </Link>
+          ))}
+        </nav>
+        <AdsRefreshButton />
+      </div>
     </div>
   );
 }
