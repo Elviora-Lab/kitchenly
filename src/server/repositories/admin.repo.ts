@@ -1,7 +1,8 @@
 import 'server-only';
 
-import { type OrderStatus, type Prisma, type UserRole } from '@prisma/client';
+import { type OrderStatus, Prisma, type UserRole } from '@prisma/client';
 
+import { productIntentScore, productIntentSignal, rate } from '@/lib/analytics/intent';
 import { prisma } from '@/lib/db';
 
 import { inventoryRepo } from '@/server/repositories/inventory.repo';
@@ -355,6 +356,45 @@ export const adminBrandsRepo = {
 
 type ProductLite = { id: string; name: string; slug: string; imageUrl: string };
 type RankedProduct = ProductLite & { count: number };
+export type ProductIntentRow = ProductLite & {
+  category: string | null;
+  views: number;
+  carts: number;
+  purchases: number;
+  quantity: number;
+  revenue: number;
+  cartRate: number;
+  purchaseRate: number;
+  cartToPurchaseRate: number;
+  score: number;
+  signal: ReturnType<typeof productIntentSignal>;
+};
+export type SearchIntentRow = {
+  keyword: string;
+  count: number;
+  zeroResults: number;
+  avgResults: number;
+};
+export type CityPerformanceRow = {
+  city: string;
+  orders: number;
+  revenue: number;
+  avgOrderValue: number;
+};
+export type UtmPerformanceRow = {
+  source: string;
+  campaign: string;
+  orders: number;
+  revenue: number;
+  avgOrderValue: number;
+};
+export type AbandonedCartPressure = {
+  carts: number;
+  staleCarts: number;
+  items: number;
+  value: number;
+  topProducts: Array<ProductLite & { carts: number; quantity: number; value: number }>;
+};
 
 /** Resolve product display info for a set of ids, keyed by id. */
 async function resolveProducts(ids: string[]): Promise<Map<string, ProductLite>> {
@@ -460,6 +500,244 @@ export const adminAnalyticsRepo = {
       prisma.order.count({ where: { createdAt: { gte } } }),
     ]);
     return { views, cartAdds, orders };
+  },
+
+  async productIntent(days: number, limit = 12): Promise<ProductIntentRow[]> {
+    const gte = since(days);
+    type Row = {
+      id: string;
+      name: string;
+      slug: string;
+      imageUrl: string | null;
+      category: string | null;
+      views: number;
+      carts: number;
+      purchases: number;
+      quantity: number;
+      revenue: number;
+    };
+    const rows = await prisma.$queryRaw<Row[]>(Prisma.sql`
+      WITH views AS (
+        SELECT product_id, COUNT(*)::int AS views
+        FROM product_view_logs
+        WHERE viewed_at >= ${gte}
+        GROUP BY product_id
+      ),
+      carts AS (
+        SELECT product_id, COUNT(*)::int AS carts
+        FROM cart_event_logs
+        WHERE created_at >= ${gte}
+        GROUP BY product_id
+      ),
+      sales AS (
+        SELECT oi.product_id,
+               COUNT(DISTINCT o.id)::int AS purchases,
+               COALESCE(SUM(oi.quantity), 0)::int AS quantity,
+               COALESCE(SUM(oi.total_price), 0)::float AS revenue
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE o.created_at >= ${gte}
+          AND o.order_status NOT IN ('CANCELLED', 'RETURNED', 'REFUNDED')
+          AND o.payment_status NOT IN ('REFUNDED', 'VOIDED')
+          AND oi.product_id IS NOT NULL
+        GROUP BY oi.product_id
+      )
+      SELECT p.id,
+             p.name,
+             p.slug,
+             c.name AS category,
+             img.image_url AS "imageUrl",
+             COALESCE(v.views, 0)::int AS views,
+             COALESCE(ca.carts, 0)::int AS carts,
+             COALESCE(s.purchases, 0)::int AS purchases,
+             COALESCE(s.quantity, 0)::int AS quantity,
+             COALESCE(s.revenue, 0)::float AS revenue
+      FROM products p
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN views v ON v.product_id = p.id
+      LEFT JOIN carts ca ON ca.product_id = p.id
+      LEFT JOIN sales s ON s.product_id = p.id
+      LEFT JOIN LATERAL (
+        SELECT image_url
+        FROM product_images
+        WHERE product_id = p.id
+        ORDER BY is_primary DESC, sort_order ASC
+        LIMIT 1
+      ) img ON true
+      WHERE COALESCE(v.views, 0) + COALESCE(ca.carts, 0) + COALESCE(s.purchases, 0) > 0
+      ORDER BY (COALESCE(s.purchases, 0) * 10 + COALESCE(ca.carts, 0) * 3 + COALESCE(v.views, 0)) DESC
+      LIMIT ${limit}
+    `);
+
+    return rows.map((r) => {
+      const counts = {
+        views: Number(r.views),
+        carts: Number(r.carts),
+        purchases: Number(r.purchases),
+      };
+      return {
+        id: r.id,
+        name: r.name,
+        slug: r.slug,
+        imageUrl: r.imageUrl ?? '',
+        category: r.category,
+        views: counts.views,
+        carts: counts.carts,
+        purchases: counts.purchases,
+        quantity: Number(r.quantity),
+        revenue: Number(r.revenue),
+        cartRate: rate(counts.carts, counts.views),
+        purchaseRate: rate(counts.purchases, counts.views),
+        cartToPurchaseRate: rate(counts.purchases, counts.carts),
+        score: productIntentScore(counts),
+        signal: productIntentSignal(counts),
+      };
+    });
+  },
+
+  async searchIntent(days: number, limit = 12): Promise<SearchIntentRow[]> {
+    const rows = await prisma.$queryRaw<SearchIntentRow[]>(Prisma.sql`
+      SELECT keyword,
+             COUNT(*)::int AS count,
+             COUNT(*) FILTER (WHERE result_count = 0)::int AS "zeroResults",
+             COALESCE(AVG(result_count), 0)::float AS "avgResults"
+      FROM search_logs
+      WHERE searched_at >= ${since(days)}
+      GROUP BY keyword
+      ORDER BY count DESC
+      LIMIT ${limit}
+    `);
+    return rows.map((r) => ({
+      keyword: r.keyword,
+      count: Number(r.count),
+      zeroResults: Number(r.zeroResults),
+      avgResults: Number(r.avgResults),
+    }));
+  },
+
+  async cityPerformance(days: number, limit = 10): Promise<CityPerformanceRow[]> {
+    const gte = since(days);
+    const rows = await prisma.$queryRaw<
+      Array<{ city: string; orders: number; revenue: number; avgOrderValue: number }>
+    >(Prisma.sql`
+      SELECT COALESCE(NULLIF(shipping_city, ''), 'Unknown') AS city,
+             COUNT(*)::int AS orders,
+             COALESCE(SUM(total_amount), 0)::float AS revenue,
+             COALESCE(AVG(total_amount), 0)::float AS "avgOrderValue"
+      FROM orders
+      WHERE created_at >= ${gte}
+        AND order_status NOT IN ('CANCELLED', 'RETURNED', 'REFUNDED')
+        AND payment_status NOT IN ('REFUNDED', 'VOIDED')
+      GROUP BY 1
+      ORDER BY orders DESC, revenue DESC
+      LIMIT ${limit}
+    `);
+    return rows.map((r) => ({
+      city: r.city,
+      orders: Number(r.orders),
+      revenue: Number(r.revenue),
+      avgOrderValue: Number(r.avgOrderValue),
+    }));
+  },
+
+  async utmPerformance(days: number, limit = 10): Promise<UtmPerformanceRow[]> {
+    const gte = since(days);
+    const rows = await prisma.$queryRaw<
+      Array<{
+        source: string;
+        campaign: string;
+        orders: number;
+        revenue: number;
+        avgOrderValue: number;
+      }>
+    >(Prisma.sql`
+      SELECT COALESCE(NULLIF(utm_source, ''), 'direct/unknown') AS source,
+             COALESCE(NULLIF(utm_campaign, ''), 'untracked') AS campaign,
+             COUNT(*)::int AS orders,
+             COALESCE(SUM(total_amount), 0)::float AS revenue,
+             COALESCE(AVG(total_amount), 0)::float AS "avgOrderValue"
+      FROM orders
+      WHERE created_at >= ${gte}
+        AND order_status NOT IN ('CANCELLED', 'RETURNED', 'REFUNDED')
+        AND payment_status NOT IN ('REFUNDED', 'VOIDED')
+      GROUP BY 1, 2
+      ORDER BY revenue DESC, orders DESC
+      LIMIT ${limit}
+    `);
+    return rows.map((r) => ({
+      source: r.source,
+      campaign: r.campaign,
+      orders: Number(r.orders),
+      revenue: Number(r.revenue),
+      avgOrderValue: Number(r.avgOrderValue),
+    }));
+  },
+
+  async abandonedCartPressure(days: number, limit = 8): Promise<AbandonedCartPressure> {
+    const gte = since(days);
+    const staleBefore = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [summaryRows, productRows] = await Promise.all([
+      prisma.$queryRaw<
+        Array<{ carts: number; staleCarts: number; items: number; value: number }>
+      >(Prisma.sql`
+        SELECT COUNT(DISTINCT c.id)::int AS carts,
+               COUNT(DISTINCT c.id) FILTER (WHERE c.updated_at < ${staleBefore})::int AS "staleCarts",
+               COALESCE(SUM(ci.quantity), 0)::int AS items,
+               COALESCE(SUM(ci.quantity * ci.price), 0)::float AS value
+        FROM carts c
+        JOIN cart_items ci ON ci.cart_id = c.id
+        WHERE c.updated_at >= ${gte}
+      `),
+      prisma.$queryRaw<
+        Array<{
+          id: string;
+          name: string;
+          slug: string;
+          imageUrl: string | null;
+          carts: number;
+          quantity: number;
+          value: number;
+        }>
+      >(Prisma.sql`
+        SELECT p.id,
+               p.name,
+               p.slug,
+               img.image_url AS "imageUrl",
+               COUNT(DISTINCT c.id)::int AS carts,
+               COALESCE(SUM(ci.quantity), 0)::int AS quantity,
+               COALESCE(SUM(ci.quantity * ci.price), 0)::float AS value
+        FROM carts c
+        JOIN cart_items ci ON ci.cart_id = c.id
+        JOIN products p ON p.id = ci.product_id
+        LEFT JOIN LATERAL (
+          SELECT image_url
+          FROM product_images
+          WHERE product_id = p.id
+          ORDER BY is_primary DESC, sort_order ASC
+          LIMIT 1
+        ) img ON true
+        WHERE c.updated_at >= ${gte}
+        GROUP BY p.id, p.name, p.slug, img.image_url
+        ORDER BY carts DESC, value DESC
+        LIMIT ${limit}
+      `),
+    ]);
+    const summary = summaryRows[0];
+    return {
+      carts: Number(summary?.carts ?? 0),
+      staleCarts: Number(summary?.staleCarts ?? 0),
+      items: Number(summary?.items ?? 0),
+      value: Number(summary?.value ?? 0),
+      topProducts: productRows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        slug: r.slug,
+        imageUrl: r.imageUrl ?? '',
+        carts: Number(r.carts),
+        quantity: Number(r.quantity),
+        value: Number(r.value),
+      })),
+    };
   },
 
   /**
