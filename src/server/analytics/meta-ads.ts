@@ -4,7 +4,12 @@ import { unstable_cache } from 'next/cache';
 
 import { serverEnv } from '@/config/env';
 
-import type { AdDatePreset } from '@/lib/ads/date-presets';
+import {
+  type AdDatePreset,
+  adPresetToDateRange,
+  adPresetToDateWindow,
+  adPresetToPreviousDateWindow,
+} from '@/lib/ads/date-presets';
 
 /**
  * Meta Marketing API — read-only ad performance (Insights).
@@ -48,18 +53,6 @@ export {
   DEFAULT_AD_RANGE,
   isAdDatePreset,
 } from '@/lib/ads/date-presets';
-
-// Fixed-length day windows we can build a fair "previous period" for. Presets
-// like this_month / maximum have no clean equivalent prior window, so their
-// tiles simply show no delta.
-const PRESET_DAYS: Partial<Record<AdDatePreset, number>> = {
-  today: 1,
-  yesterday: 1,
-  last_7d: 7,
-  last_14d: 14,
-  last_30d: 30,
-  last_90d: 90,
-};
 
 // ---------------------------------------------------------------------------
 // Types
@@ -321,72 +314,17 @@ function safe<T>(promise: Promise<T>, fallback: T): Promise<T> {
   return promise.catch(() => fallback);
 }
 
-function fmtDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-/** The equal-length window immediately before the selected preset, or null. */
-function previousWindow(
-  preset: AdDatePreset,
-): { since: string; until: string; label: string } | null {
-  const days = PRESET_DAYS[preset];
-  if (!days) return null;
-  const now = new Date();
-  const until = new Date(now);
-  until.setUTCDate(until.getUTCDate() - days);
-  const since = new Date(now);
-  since.setUTCDate(since.getUTCDate() - 2 * days + 1);
-  return {
-    since: fmtDate(since),
-    until: fmtDate(until),
-    label: days === 1 ? 'vs prior day' : `vs prior ${days} days`,
-  };
-}
-
 /**
- * Explicit {since, until} dates for a preset, for querying the store DB so the
- * order window lines up with Meta's. Approximate (Meta uses the ad-account
- * timezone; we use the server's) — fine for a reconciliation view.
+ * Explicit Insights windows keep Overview, Funnel, Breakdowns and Campaigns on
+ * the same dates. Meta documents `time_range` as overriding `date_preset`, so
+ * use it for every finite dashboard range and keep `maximum` as Meta's preset.
  */
-export function presetToDateRange(preset: AdDatePreset): { since: Date; until: Date } {
-  const until = new Date();
-  const since = new Date();
-  since.setUTCHours(0, 0, 0, 0);
-  switch (preset) {
-    case 'today':
-      break;
-    case 'yesterday':
-      since.setUTCDate(since.getUTCDate() - 1);
-      until.setUTCDate(until.getUTCDate() - 1);
-      until.setUTCHours(23, 59, 59, 999);
-      break;
-    case 'last_7d':
-      since.setUTCDate(since.getUTCDate() - 7);
-      break;
-    case 'last_14d':
-      since.setUTCDate(since.getUTCDate() - 14);
-      break;
-    case 'last_30d':
-      since.setUTCDate(since.getUTCDate() - 30);
-      break;
-    case 'last_90d':
-      since.setUTCDate(since.getUTCDate() - 90);
-      break;
-    case 'this_month':
-      since.setUTCDate(1);
-      break;
-    case 'last_month':
-      since.setUTCDate(1);
-      since.setUTCMonth(since.getUTCMonth() - 1);
-      until.setUTCDate(0); // last day of previous month
-      until.setUTCHours(23, 59, 59, 999);
-      break;
-    case 'maximum':
-      since.setUTCFullYear(2000, 0, 1);
-      break;
-  }
-  return { since, until };
+function insightsDateParams(preset: AdDatePreset): Record<string, string> {
+  const window = adPresetToDateWindow(preset);
+  return window ? { time_range: JSON.stringify(window) } : { date_preset: preset };
 }
+
+export const presetToDateRange = adPresetToDateRange;
 
 async function fetchBreakdown(
   act: string,
@@ -396,7 +334,7 @@ async function fetchBreakdown(
 ): Promise<BreakdownRow[]> {
   const res = await graphGet<{ data?: InsightRow[] }>(`${act}/insights`, {
     fields: BREAKDOWN_FIELDS,
-    date_preset: datePreset,
+    ...insightsDateParams(datePreset),
     level: 'account',
     breakdowns,
     limit: '50',
@@ -473,7 +411,7 @@ async function fetchAdsSummary(
   if (!adsInsightsEnabled()) return { ok: false, error: 'Meta Ads is not configured.' };
 
   const act = accountPath();
-  const prev = previousWindow(datePreset);
+  const prev = adPresetToPreviousDateWindow(datePreset);
   const scope = campaignFilter(campaignId);
 
   try {
@@ -481,7 +419,7 @@ async function fetchAdsSummary(
       fetchAccountMeta(act),
       graphGet<{ data?: InsightRow[] }>(`${act}/insights`, {
         fields: INSIGHT_FIELDS,
-        date_preset: datePreset,
+        ...insightsDateParams(datePreset),
         level: 'account',
         ...scope,
       }),
@@ -499,7 +437,7 @@ async function fetchAdsSummary(
       safe(
         graphGet<{ data?: InsightRow[] }>(`${act}/insights`, {
           fields: 'spend,action_values,purchase_roas',
-          date_preset: datePreset,
+          ...insightsDateParams(datePreset),
           level: 'account',
           time_increment: '1',
           limit: '200',
@@ -614,7 +552,7 @@ async function fetchAdsCampaignOptions(datePreset: AdDatePreset): Promise<Campai
   const res = await safe(
     graphGet<{ data?: InsightRow[] }>(`${act}/insights`, {
       fields: 'campaign_id,campaign_name,spend',
-      date_preset: datePreset,
+      ...insightsDateParams(datePreset),
       level: 'campaign',
       sort: 'spend_descending',
       limit: '100',
@@ -652,7 +590,7 @@ async function fetchAdsCampaignsData(datePreset: AdDatePreset): Promise<AdsCampa
       fetchAccountMeta(act),
       graphGet<{ data?: InsightRow[] }>(`${act}/insights`, {
         fields: `${INSIGHT_FIELDS},campaign_id,campaign_name`,
-        date_preset: datePreset,
+        ...insightsDateParams(datePreset),
         level: 'campaign',
         limit: '200',
       }),
@@ -666,7 +604,7 @@ async function fetchAdsCampaignsData(datePreset: AdDatePreset): Promise<AdsCampa
       safe(
         graphGet<{ data?: InsightRow[] }>(`${act}/insights`, {
           fields: 'ad_id,ad_name,campaign_name,spend,actions,action_values,purchase_roas',
-          date_preset: datePreset,
+          ...insightsDateParams(datePreset),
           level: 'ad',
           sort: 'spend_descending',
           limit: '8',
