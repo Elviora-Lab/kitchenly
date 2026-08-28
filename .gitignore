@@ -151,6 +151,7 @@ data/
 
 # Local DB dump for prod restore (not tracked)
 elviora_db_dump.sql
+tmp/db-dumps/
 
 # Playwright
 /test-results/

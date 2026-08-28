@@ -21,6 +21,7 @@
     "db:seed:subcategories": "tsx prisma/seed-subcategories.ts",
     "db:import": "tsx prisma/import-shop-data.ts",
     "db:import:smtraders": "tsx prisma/import-shop-data.ts --dataset=smtraders",
+    "db:pull:prod": "tsx scripts/local-db-from-prod.ts",
     "db:backfill:compare": "tsx prisma/backfill-compare-price.ts",
     "db:studio": "prisma studio",
     "seo:audit-copy": "tsx scripts/seo-audit-copy.ts",
