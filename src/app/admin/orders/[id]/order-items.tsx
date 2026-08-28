@@ -176,12 +176,14 @@ export function OrderItems({
             </td>
             <td className="text-right tabular-nums">{formatMoney(shippingFee, currency)}</td>
           </tr>
-          <tr>
-            <td colSpan={3} className="text-right text-sm text-muted-foreground">
-              Tax
-            </td>
-            <td className="text-right tabular-nums">{formatMoney(taxAmount, currency)}</td>
-          </tr>
+          {taxAmount > 0 ? (
+            <tr>
+              <td colSpan={3} className="text-right text-sm text-muted-foreground">
+                Tax
+              </td>
+              <td className="text-right tabular-nums">{formatMoney(taxAmount, currency)}</td>
+            </tr>
+          ) : null}
           {discountAmount > 0 && (
             <tr>
               <td colSpan={3} className="text-right text-sm text-muted-foreground">

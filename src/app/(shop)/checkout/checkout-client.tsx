@@ -91,10 +91,10 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
     isDefault: addresses.length === 0,
   });
 
-  // Live shipping + tax estimate from the PostEx rate card. Destination city
-  // comes from the selected saved address or the new-address form; both update
-  // the quote as the customer changes them. Uses the same helper as the server,
-  // so the quote equals the charged total.
+  // Live shipping estimate. Destination city comes from the selected saved
+  // address or the new-address form; both update the quote as the customer
+  // changes them. Uses the same helper as the server, so the quote equals the
+  // charged total.
   const destinationCity =
     addressId === 'new' ? newAddress.city : (addresses.find((a) => a.id === addressId)?.city ?? '');
   const totalQuantity = cart.lines.reduce((sum, l) => sum + l.quantity, 0);
@@ -425,17 +425,16 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
             </span>
           )}
         </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">
-            Tax{paymentMethod === 'COD' ? ' (incl. COD)' : ''}
-          </span>
-          <span className="tabular-nums">
-            {cityChosen || totals.taxAmount === 0 ? null : (
-              <span className="text-muted-foreground">from </span>
-            )}
-            <Price amount={totals.taxAmount} currency={cart.currency} size="sm" />
-          </span>
-        </div>
+        {totals.taxAmount > 0 ? (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">
+              Tax{paymentMethod === 'COD' ? ' (incl. COD)' : ''}
+            </span>
+            <span className="tabular-nums">
+              <Price amount={totals.taxAmount} currency={cart.currency} size="sm" />
+            </span>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between border-t border-border pt-3">
           <span className="eyebrow">Total</span>
           <span className="tabular-nums">
@@ -447,15 +446,16 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
         </div>
         <p className="text-xs text-muted-foreground">
           {cityChosen ? (
-            <>
-              Shipping &amp; tax for delivery to {destinationCity.trim()}, incl. 35% fuel &amp; 15%
-              GST{paymentMethod === 'COD' ? ' and 4% COD tax' : ''}.
-            </>
+            totals.zone === 'within_city' ? (
+              <>Karachi delivery is a flat Rs 200.</>
+            ) : (
+              <>
+                Shipping and applicable tax for delivery to {destinationCity.trim()} are shown
+                above.
+              </>
+            )
           ) : (
-            <>
-              Starting from our lowest delivery rate — enter your city above to see the exact
-              shipping &amp; tax.
-            </>
+            <>Starting from Karachi delivery — enter your city above to see the exact shipping.</>
           )}
         </p>
         {cityServiceable === false ? (

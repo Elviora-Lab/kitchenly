@@ -65,7 +65,7 @@ export const ordersService = {
     currency?: string;
     notes?: string;
     couponCode?: string;
-    /** Chosen payment method — COD adds the 4% COD tax. */
+    /** Chosen payment method. COD tax applies outside Karachi. */
     paymentMethod: PaymentMethod;
     /** Last-touch marketing attribution captured at checkout (elv_utm cookie). */
     utm?: { source?: string | null; medium?: string | null; campaign?: string | null };
@@ -148,8 +148,8 @@ export const ordersService = {
           discountLabel = appliedCoupon?.code ?? null;
         }
 
-        // Shipping + tax from the PostEx rate card. Same helper the checkout UI
-        // uses, so the stored charge matches the quoted total exactly.
+        // Shipping and tax from the shared checkout helper, so the stored charge
+        // matches the quoted total exactly.
         const totalQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0);
         const totals = computeCheckoutTotals({
           subtotal: subtotal.toNumber(),
