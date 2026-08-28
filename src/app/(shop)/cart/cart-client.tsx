@@ -193,7 +193,7 @@ export function CartPageClient() {
               {subtotal >= FREE_SHIPPING_THRESHOLD ? (
                 <span className="font-medium text-success">Free</span>
               ) : (
-                // Within-Karachi starting rate, tax-inclusive (see /shipping copy).
+                // Within-Karachi starting rate (see /shipping copy).
                 <span className="text-muted-foreground">
                   from <Price amount={cheapestShippingFrom(count)} currency={currency} size="sm" />
                 </span>
@@ -206,8 +206,8 @@ export function CartPageClient() {
           </div>
           <p className="text-xs text-muted-foreground">
             Delivery is set by your city (free over{' '}
-            <Price amount={FREE_SHIPPING_THRESHOLD} currency={currency} />) — the exact shipping and
-            any tax are shown at checkout before you pay.
+            <Price amount={FREE_SHIPPING_THRESHOLD} currency={currency} />) — exact shipping and any
+            applicable tax are shown at checkout before you place the order.
           </p>
           <Button asChild size="lg" variant="cta" uppercase>
             <Link href="/checkout">Proceed to checkout</Link>

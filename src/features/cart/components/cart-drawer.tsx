@@ -180,7 +180,7 @@ export function CartDrawer() {
               <Price amount={subtotal} currency={cart.lines[0]?.currency ?? 'PKR'} size="lg" />
             </div>
             <p className="text-balance text-xs text-muted-foreground">
-              Shipping, taxes and discounts calculated at checkout.
+              Shipping, any applicable tax, and discounts are calculated at checkout.
             </p>
             <Button asChild size="lg" variant="cta" uppercase>
               <Link href="/checkout" onClick={() => dispatch(closeCart())}>
