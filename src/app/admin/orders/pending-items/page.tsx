@@ -8,6 +8,7 @@ import { buildMetadata } from '@/lib/seo/metadata';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
+import { CopyPickListButton } from './copy-pick-list';
 import { ProductCell } from './product-cell';
 
 import { adminOrdersRepo } from '@/server/repositories/admin.repo';
@@ -69,9 +70,16 @@ export default async function AdminPendingItemsPage({ searchParams }: Props) {
               What still needs packing from {statusLabel} orders.
             </p>
           </div>
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/admin/orders?status=${status ?? 'PENDING'}`}>Open orders →</Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <CopyPickListButton
+              lines={aggregated}
+              statusLabel={statusLabel}
+              orderCount={orders.length}
+            />
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/admin/orders?status=${status ?? 'PENDING'}`}>Open orders →</Link>
+            </Button>
+          </div>
         </div>
       </header>
 
