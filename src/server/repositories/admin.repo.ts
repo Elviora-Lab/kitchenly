@@ -229,6 +229,12 @@ export const adminOrdersRepo = {
           product_name: string;
           variant_name: string | null;
           sku: string | null;
+          size: string | null;
+          shade: string | null;
+          fragrance: string | null;
+          product_slug: string | null;
+          variant_image: string | null;
+          product_image: string | null;
           total_quantity: bigint;
           order_count: bigint;
         }>
@@ -238,13 +244,33 @@ export const adminOrdersRepo = {
                oi."product_name",
                oi."variant_name",
                pv."sku",
+               pv."size",
+               pv."shade",
+               pv."fragrance",
+               p."slug" AS product_slug,
+               (
+                 SELECT pi."image_url"
+                 FROM "product_images" pi
+                 WHERE pi."variant_id" = oi."variant_id"
+                 ORDER BY pi."is_primary" DESC, pi."sort_order" ASC
+                 LIMIT 1
+               ) AS variant_image,
+               (
+                 SELECT pi."image_url"
+                 FROM "product_images" pi
+                 WHERE pi."product_id" = oi."product_id" AND pi."variant_id" IS NULL
+                 ORDER BY pi."is_primary" DESC, pi."sort_order" ASC
+                 LIMIT 1
+               ) AS product_image,
                SUM(oi."quantity")::bigint AS total_quantity,
                COUNT(DISTINCT oi."order_id")::bigint AS order_count
         FROM "order_items" oi
         JOIN "orders" o ON o."id" = oi."order_id"
         LEFT JOIN "product_variants" pv ON pv."id" = oi."variant_id"
+        LEFT JOIN "products" p ON p."id" = oi."product_id"
         WHERE o."order_status"::text = ANY(${statusList}::text[])
-        GROUP BY oi."product_id", oi."variant_id", oi."product_name", oi."variant_name", pv."sku"
+        GROUP BY oi."product_id", oi."variant_id", oi."product_name", oi."variant_name",
+                 pv."sku", pv."size", pv."shade", pv."fragrance", p."slug"
         ORDER BY SUM(oi."quantity") DESC, oi."product_name" ASC`,
 
       prisma.order.findMany({
@@ -266,7 +292,30 @@ export const adminOrdersRepo = {
               productName: true,
               variantName: true,
               quantity: true,
-              variant: { select: { sku: true, size: true, shade: true, fragrance: true } },
+              product: {
+                select: {
+                  slug: true,
+                  images: {
+                    where: { variantId: null },
+                    orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                    take: 1,
+                    select: { imageUrl: true },
+                  },
+                },
+              },
+              variant: {
+                select: {
+                  sku: true,
+                  size: true,
+                  shade: true,
+                  fragrance: true,
+                  images: {
+                    orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+                    take: 1,
+                    select: { imageUrl: true },
+                  },
+                },
+              },
             },
             orderBy: { productName: 'asc' },
           },
@@ -281,10 +330,29 @@ export const adminOrdersRepo = {
         productName: row.product_name,
         variantName: row.variant_name,
         sku: row.sku,
+        size: row.size,
+        shade: row.shade,
+        fragrance: row.fragrance,
+        productSlug: row.product_slug,
+        imageUrl: row.variant_image ?? row.product_image,
         totalQuantity: Number(row.total_quantity),
         orderCount: Number(row.order_count),
       })),
-      orders,
+      orders: orders.map((order) => ({
+        ...order,
+        items: order.items.map((item) => ({
+          id: item.id,
+          productName: item.productName,
+          variantName: item.variantName,
+          quantity: item.quantity,
+          productSlug: item.product?.slug ?? null,
+          imageUrl: item.variant?.images[0]?.imageUrl ?? item.product?.images[0]?.imageUrl ?? null,
+          sku: item.variant?.sku ?? null,
+          size: item.variant?.size ?? null,
+          shade: item.variant?.shade ?? null,
+          fragrance: item.variant?.fragrance ?? null,
+        })),
+      })),
     };
   },
 
