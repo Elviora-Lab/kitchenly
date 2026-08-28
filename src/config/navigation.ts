@@ -125,6 +125,7 @@ export const adminNavGroups: NavGroup[] = [
     label: 'Sales',
     items: [
       { label: 'Orders', href: '/admin/orders' },
+      { label: 'Pending items', href: '/admin/orders/pending-items' },
       { label: 'Returns', href: '/admin/returns' },
       { label: 'Reviews', href: '/admin/reviews' },
       { label: 'Users', href: '/admin/users' },

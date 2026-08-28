@@ -49,11 +49,19 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <header>
-        <h1 className="editorial-heading text-display-md">Orders</h1>
-        <p className="text-sm text-muted-foreground">
-          {total} matching — track status, fulfilment, refunds.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="editorial-heading text-display-md">Orders</h1>
+          <p className="text-sm text-muted-foreground">
+            {total} matching — track status, fulfilment, refunds.
+          </p>
+        </div>
+        <Link
+          href="/admin/orders/pending-items"
+          className="text-xs uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground"
+        >
+          Pending items →
+        </Link>
       </header>
 
       <div className="flex flex-wrap gap-2">

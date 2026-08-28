@@ -211,6 +211,83 @@ export const adminOrdersRepo = {
     ]);
   },
 
+  /**
+   * What still needs packing: line items across orders in the given statuses,
+   * rolled up by variant (or product snapshot when the variant is gone).
+   *
+   * Defaults to PENDING — the status every checkout starts in — so the page is
+   * a pick list for orders that haven't moved into fulfilment yet.
+   */
+  async pendingItems(statuses: OrderStatus[] = ['PENDING']) {
+    const statusList = statuses.length > 0 ? statuses : (['PENDING'] as OrderStatus[]);
+
+    const [aggregated, orders] = await Promise.all([
+      prisma.$queryRaw<
+        Array<{
+          product_id: string | null;
+          variant_id: string | null;
+          product_name: string;
+          variant_name: string | null;
+          sku: string | null;
+          total_quantity: bigint;
+          order_count: bigint;
+        }>
+      >`
+        SELECT oi."product_id",
+               oi."variant_id",
+               oi."product_name",
+               oi."variant_name",
+               pv."sku",
+               SUM(oi."quantity")::bigint AS total_quantity,
+               COUNT(DISTINCT oi."order_id")::bigint AS order_count
+        FROM "order_items" oi
+        JOIN "orders" o ON o."id" = oi."order_id"
+        LEFT JOIN "product_variants" pv ON pv."id" = oi."variant_id"
+        WHERE o."order_status"::text = ANY(${statusList}::text[])
+        GROUP BY oi."product_id", oi."variant_id", oi."product_name", oi."variant_name", pv."sku"
+        ORDER BY SUM(oi."quantity") DESC, oi."product_name" ASC`,
+
+      prisma.order.findMany({
+        where: { orderStatus: { in: statusList } },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          orderNumber: true,
+          orderStatus: true,
+          paymentStatus: true,
+          createdAt: true,
+          shippingFullName: true,
+          shippingPhone: true,
+          shippingCity: true,
+          user: { select: { firstName: true, lastName: true, email: true } },
+          items: {
+            select: {
+              id: true,
+              productName: true,
+              variantName: true,
+              quantity: true,
+              variant: { select: { sku: true, size: true, shade: true, fragrance: true } },
+            },
+            orderBy: { productName: 'asc' },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      aggregated: aggregated.map((row) => ({
+        productId: row.product_id,
+        variantId: row.variant_id,
+        productName: row.product_name,
+        variantName: row.variant_name,
+        sku: row.sku,
+        totalQuantity: Number(row.total_quantity),
+        orderCount: Number(row.order_count),
+      })),
+      orders,
+    };
+  },
+
   findById(id: string) {
     return prisma.order.findUnique({
       where: { id },
