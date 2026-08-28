@@ -41,6 +41,39 @@ npm run db:seed
 npm run db:studio
 ```
 
+### Local development from a production dump
+
+Use this when you need real catalogue/order shape locally without pointing the
+running app at production.
+
+```bash
+# 1. Keep the app pointed at local Postgres:
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/kitchenly?schema=public
+
+# 2. Put the production source URL in ignored .env.prod.
+#    Prefer a direct/session-pooler URL over a transaction-pooler URL:
+PROD_DATABASE_URL=postgresql://...
+
+# 3. Pull a dump and restore it into the local database:
+npm run db:pull:prod
+```
+
+The restore helper refuses to write to a non-local target unless you explicitly
+set `ALLOW_NON_LOCAL_RESTORE_TARGET=1`. Dumps are saved under `tmp/db-dumps/`,
+which is ignored by git.
+
+Only the Prisma-owned `public` schema is dumped. Supabase-managed schemas such
+as `auth`, `storage`, and `vault` are intentionally skipped because local
+Postgres usually does not have those platform extensions installed.
+During restore, the helper prepares local `pgcrypto` and `pg_trgm` extensions
+and skips Supabase's `CREATE SCHEMA public` archive entry, which conflicts with
+the default schema that local Postgres creates automatically.
+
+The app also refuses to boot in local development when `DATABASE_URL` points to
+a non-local host. That keeps day-to-day dev from reading or mutating production
+by accident. The escape hatch is `ALLOW_NON_LOCAL_DEV_DATABASE=1`, but the
+preferred flow is to restore production into local Postgres first.
+
 After any change to `schema.prisma`:
 
 ```bash

@@ -141,6 +141,21 @@ if (!publicParsed.success) {
 
 export const publicEnv = publicParsed.data;
 
+function isLocalPostgresUrl(value: string | undefined): boolean {
+  if (!value) return true;
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1' ||
+      hostname === '0.0.0.0'
+    );
+  } catch {
+    return false;
+  }
+}
+
 // NEXT_PUBLIC_SITE_URL is inlined at build time and is the single source of
 // every canonical, OG url, sitemap entry, robots host and JSON-LD `url`. Its
 // zod default means an UNSET var builds cleanly against `http://localhost:3000`
@@ -206,6 +221,21 @@ export const serverEnv = (() => {
   if (!parsed.success) {
     console.error('Invalid server environment variables:', parsed.error.flatten().fieldErrors);
     throw new Error('Invalid server environment variables');
+  }
+
+  const isLocalDevelopment =
+    publicEnv.NEXT_PUBLIC_ENVIRONMENT === 'development' && process.env.VERCEL !== '1';
+  if (
+    isLocalDevelopment &&
+    parsed.data.DATABASE_URL &&
+    !isLocalPostgresUrl(parsed.data.DATABASE_URL) &&
+    process.env.ALLOW_NON_LOCAL_DEV_DATABASE !== '1'
+  ) {
+    throw new Error(
+      'Refusing to run local development against a non-local DATABASE_URL. ' +
+        'Take a production dump into local Postgres instead, or set ' +
+        'ALLOW_NON_LOCAL_DEV_DATABASE=1 only when you intentionally need a remote dev database.',
+    );
   }
 
   // Production hardening: secrets that are optional in dev MUST be present (and
