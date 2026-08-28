@@ -1,12 +1,6 @@
 import { SITE_URL, siteConfig, socialProfiles } from '@/config/site';
 
-import {
-  baseShippingRate,
-  cheapestShippingFrom,
-  DEFAULT_ITEM_WEIGHT_KG,
-  FUEL_SURCHARGE_RATE,
-  GST_RATE,
-} from '@/lib/shipping';
+import { cheapestShippingFrom, shippingFeeForZone } from '@/lib/shipping';
 
 import { absoluteUrl, clamp, cleanCopy } from './metadata';
 
@@ -138,10 +132,10 @@ export function websiteJsonLd() {
  */
 function shippingDetails() {
   const { policy, business, defaultCurrency } = siteConfig;
-  const dearestZoneFee = Math.round(
-    baseShippingRate('province_to_province', DEFAULT_ITEM_WEIGHT_KG) *
-      (1 + FUEL_SURCHARGE_RATE) *
-      (1 + GST_RATE),
+  const dearestZoneFee = Math.max(
+    shippingFeeForZone('within_city'),
+    shippingFeeForZone('same_province'),
+    shippingFeeForZone('province_to_province'),
   );
   return {
     '@type': 'OfferShippingDetails',

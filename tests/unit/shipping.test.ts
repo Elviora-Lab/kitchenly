@@ -23,7 +23,7 @@ describe('shipping totals', () => {
     expect(totals.total).toBe(1200);
   });
 
-  it('keeps courier shipping and COD tax outside Karachi', () => {
+  it('charges Rs 220 outside Sindh with no extra tax', () => {
     const totals = computeCheckoutTotals({
       subtotal: 1000,
       city: 'Gilgit',
@@ -32,14 +32,14 @@ describe('shipping totals', () => {
     });
 
     expect(totals.zone).toBe('province_to_province');
-    expect(totals.shippingFee).toBe(236.25);
-    expect(totals.gst).toBe(35.44);
-    expect(totals.codTax).toBe(50.87);
-    expect(totals.taxAmount).toBe(86.31);
-    expect(totals.total).toBe(1322.56);
+    expect(totals.shippingFee).toBe(220);
+    expect(totals.gst).toBe(0);
+    expect(totals.codTax).toBe(0);
+    expect(totals.taxAmount).toBe(0);
+    expect(totals.total).toBe(1220);
   });
 
-  it('keeps same-province courier pricing outside Karachi', () => {
+  it('charges Rs 220 for Sindh cities outside Karachi', () => {
     const totals = computeCheckoutTotals({
       subtotal: 1000,
       city: 'Hyderabad',
@@ -48,14 +48,14 @@ describe('shipping totals', () => {
     });
 
     expect(totals.zone).toBe('same_province');
-    expect(totals.shippingFee).toBe(222.75);
-    expect(totals.gst).toBe(33.41);
+    expect(totals.shippingFee).toBe(220);
+    expect(totals.gst).toBe(0);
     expect(totals.codTax).toBe(0);
-    expect(totals.taxAmount).toBe(33.41);
-    expect(totals.total).toBe(1256.16);
+    expect(totals.taxAmount).toBe(0);
+    expect(totals.total).toBe(1220);
   });
 
-  it('keeps the free shipping threshold with outside-Karachi COD tax', () => {
+  it('keeps the free shipping threshold with no extra tax', () => {
     const totals = computeCheckoutTotals({
       subtotal: FREE_SHIPPING_THRESHOLD,
       city: 'Gilgit',
@@ -66,9 +66,9 @@ describe('shipping totals', () => {
     expect(totals.freeShipping).toBe(true);
     expect(totals.shippingFee).toBe(0);
     expect(totals.gst).toBe(0);
-    expect(totals.codTax).toBe(320);
-    expect(totals.taxAmount).toBe(320);
-    expect(totals.total).toBe(8320);
+    expect(totals.codTax).toBe(0);
+    expect(totals.taxAmount).toBe(0);
+    expect(totals.total).toBe(8000);
   });
 
   it('shows Karachi as the starting shipping rate', () => {

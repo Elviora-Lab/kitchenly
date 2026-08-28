@@ -206,8 +206,8 @@ export function CartPageClient() {
           </div>
           <p className="text-xs text-muted-foreground">
             Delivery is set by your city (free over{' '}
-            <Price amount={FREE_SHIPPING_THRESHOLD} currency={currency} />) — exact shipping and any
-            applicable tax are shown at checkout before you place the order.
+            <Price amount={FREE_SHIPPING_THRESHOLD} currency={currency} />) — exact shipping is
+            shown at checkout before you place the order.
           </p>
           <Button asChild size="lg" variant="cta" uppercase>
             <Link href="/checkout">Proceed to checkout</Link>

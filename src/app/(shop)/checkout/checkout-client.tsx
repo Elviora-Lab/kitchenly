@@ -449,10 +449,7 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
             totals.zone === 'within_city' ? (
               <>Karachi delivery is a flat Rs 200.</>
             ) : (
-              <>
-                Shipping and applicable tax for delivery to {destinationCity.trim()} are shown
-                above.
-              </>
+              <>Delivery to {destinationCity.trim()} is a flat Rs 220.</>
             )
           ) : (
             <>Starting from Karachi delivery — enter your city above to see the exact shipping.</>

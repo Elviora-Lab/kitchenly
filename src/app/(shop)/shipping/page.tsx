@@ -33,11 +33,8 @@ export default function ShippingPage() {
           <ul className="flex flex-col gap-3 text-pretty leading-relaxed text-muted-foreground">
             <li>Nationwide delivery across Pakistan in 2 to 5 business days.</li>
             <li>Free shipping on orders over Rs 8,000.</li>
-            <li>Below that, Karachi delivery is a flat Rs 200 with no separate checkout fee.</li>
-            <li>
-              Other cities are charged by our courier based on your city, parcel weight, fuel
-              surcharge, GST, and cash-on-delivery tax where applicable.
-            </li>
+            <li>Below that, Karachi delivery is a flat Rs 200.</li>
+            <li>Sindh and all other provinces are a flat Rs 220.</li>
             <li>The exact amount is always shown at checkout before you place the order.</li>
             <li>Orders are processed within 24 hours, Monday to Saturday.</li>
           </ul>

@@ -6,9 +6,10 @@
  * exactly what is stored on the order.
  *
  * Customer-facing delivery:
- *   - Karachi: flat Rs 200, no separate tax/COD line
- *   - Outside Karachi: courier rate card with fuel surcharge, GST, and COD tax
- *     where applicable
+ *   - Karachi: flat Rs 200
+ *   - Sindh outside Karachi: flat Rs 220
+ *   - Other provinces: flat Rs 220
+ *   - No separate tax/COD line is shown to the customer
  */
 
 export type ShippingZone = 'within_city' | 'same_province' | 'province_to_province';
@@ -16,30 +17,23 @@ export type ShippingZone = 'within_city' | 'same_province' | 'province_to_provin
 export type CheckoutPaymentMethod = 'COD' | 'CARD';
 
 export const KARACHI_SHIPPING_FEE = 200;
-export const FUEL_SURCHARGE_RATE = 0.35;
-export const GST_RATE = 0.15;
-export const COD_TAX_RATE = 0.04; // 2% income tax + 2% sales tax
+export const SINDH_SHIPPING_FEE = 220;
+export const OTHER_PROVINCE_SHIPPING_FEE = 220;
 
 /**
  * Orders whose merchandise **subtotal** (before any discount) reaches this
- * amount ship free. For non-Karachi COD orders, COD tax still applies because
- * it is levied on the cash collected at the door. Judged pre-discount so a
- * Spend & Save reward can't cancel free shipping.
+ * amount ship free. Judged pre-discount so a Spend & Save reward can't cancel
+ * free shipping.
  */
 export const FREE_SHIPPING_THRESHOLD = 8000;
 
 /** Our product line is ~120 g; used when a variant has no explicit weight. */
 export const DEFAULT_ITEM_WEIGHT_KG = 0.12;
 
-// Base (pre-tax) rupee rates per weight slab, per zone. Karachi is handled as a
-// special flat customer fee in computeCheckoutTotals.
-const RATE_TABLE: Record<
-  ShippingZone,
-  { upToHalfKg: number; upToOneKg: number; eachAdditionalKg: number }
-> = {
-  within_city: { upToHalfKg: 100, upToOneKg: 110, eachAdditionalKg: 110 },
-  same_province: { upToHalfKg: 165, upToOneKg: 185, eachAdditionalKg: 185 },
-  province_to_province: { upToHalfKg: 175, upToOneKg: 195, eachAdditionalKg: 180 },
+const FLAT_SHIPPING_FEES: Record<ShippingZone, number> = {
+  within_city: KARACHI_SHIPPING_FEE,
+  same_province: SINDH_SHIPPING_FEE,
+  province_to_province: OTHER_PROVINCE_SHIPPING_FEE,
 };
 
 // Cities in the origin province (Sindh) → same_province rate. Everything not
@@ -117,14 +111,9 @@ function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-/** Pre-tax courier base shipping rate for a given zone and total weight. */
-export function baseShippingRate(zone: ShippingZone, weightKg: number): number {
-  const rates = RATE_TABLE[zone];
-  const weight = Math.max(weightKg, 0);
-  if (weight <= 0.5) return rates.upToHalfKg;
-  if (weight <= 1) return rates.upToOneKg;
-  const extraKg = Math.ceil(weight - 1);
-  return rates.upToOneKg + extraKg * rates.eachAdditionalKg;
+/** Customer-facing flat shipping fee for a given zone. */
+export function shippingFeeForZone(zone: ShippingZone): number {
+  return FLAT_SHIPPING_FEES[zone];
 }
 
 export type CheckoutTotals = {
@@ -133,24 +122,24 @@ export type CheckoutTotals = {
   freeShipping: boolean;
   /** Delivery charge shown as "Shipping". */
   shippingFee: number;
-  /** GST on non-Karachi courier shipping. Karachi flat delivery keeps this 0. */
+  /** Reserved for compatibility with stored orders and analytics. */
   gst: number;
-  /** COD tax for non-Karachi cash-on-delivery orders. Karachi keeps this 0. */
+  /** Reserved for compatibility with stored orders and analytics. */
   codTax: number;
   /** Combined tax line shown when non-zero. */
   taxAmount: number;
-  /** subtotal − discount + shipping + any applicable tax. */
+  /** subtotal - discount + shipping. */
   total: number;
 };
 
 /**
- * Compute the shipping fee, tax, and grand total for an order.
+ * Compute the shipping fee and grand total for an order.
  *
  * @param subtotal    Cart subtotal (sum of line prices), before discount.
  * @param discount    Coupon discount applied to the subtotal.
  * @param city        Destination city (free text is fine; matched leniently).
- * @param quantity    Total item quantity — weight is quantity × item weight.
- * @param paymentMethod  COD triggers tax outside Karachi.
+ * @param quantity    Kept for call-site compatibility; flat rates ignore it.
+ * @param paymentMethod  Kept for call-site compatibility; flat rates ignore it.
  */
 export function computeCheckoutTotals(params: {
   subtotal: number;
@@ -169,34 +158,14 @@ export function computeCheckoutTotals(params: {
 }): CheckoutTotals {
   const discount = Math.max(0, params.discount ?? 0);
   const merchandise = Math.max(0, params.subtotal - discount);
-  const weightKg = Math.max(1, params.quantity) * (params.itemWeightKg ?? DEFAULT_ITEM_WEIGHT_KG);
   const zone = params.zone ?? resolveZone(params.city);
   // Free shipping is judged on the PRE-discount subtotal, so a Spend & Save
   // reward can never accidentally drop an order below the threshold and cancel
   // free shipping.
   const freeShipping = params.subtotal >= FREE_SHIPPING_THRESHOLD;
 
-  if (zone === 'within_city') {
-    const shippingFee = freeShipping ? 0 : KARACHI_SHIPPING_FEE;
-    return {
-      zone,
-      freeShipping,
-      shippingFee,
-      gst: 0,
-      codTax: 0,
-      taxAmount: 0,
-      total: round2(merchandise + shippingFee),
-    };
-  }
-
-  const base = freeShipping ? 0 : baseShippingRate(zone, weightKg);
-  const fuel = base * FUEL_SURCHARGE_RATE;
-  const shippingFee = round2(base + fuel);
-  const gst = round2(shippingFee * GST_RATE);
-  const codTax =
-    params.paymentMethod === 'COD' ? round2((merchandise + shippingFee + gst) * COD_TAX_RATE) : 0;
-  const taxAmount = round2(gst + codTax);
-
-  const total = round2(merchandise + shippingFee + taxAmount);
-  return { zone, freeShipping, shippingFee, gst, codTax, taxAmount, total };
+  const shippingFee = freeShipping ? 0 : shippingFeeForZone(zone);
+  const taxAmount = 0;
+  const total = round2(merchandise + shippingFee);
+  return { zone, freeShipping, shippingFee, gst: 0, codTax: 0, taxAmount, total };
 }
