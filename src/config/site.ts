@@ -118,7 +118,7 @@ export const siteConfig = {
    * so what we advertise, what we render, and what we tell Google agree.
    */
   policy: {
-    freeShippingOver: 8000,
+    freeShippingOver: 3300,
     deliveryDaysMin: 2,
     deliveryDaysMax: 5,
     handlingDaysMax: 1,

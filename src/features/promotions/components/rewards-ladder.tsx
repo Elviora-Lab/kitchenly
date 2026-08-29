@@ -9,7 +9,7 @@ import { formatMoney } from '@/utils/format';
 
 import { useGetSpendTiersQuery } from '../api/promotions-api';
 
-// Use the shared formatter so amounts render "Rs 8,000" here exactly like the
+// Use the shared formatter so amounts render "Rs 3,300" here exactly like the
 // Price primitive on the same cart/checkout screen (was "PKR 8,000" via en-US).
 const money = (n: number, currency = 'PKR') => formatMoney(n, currency);
 

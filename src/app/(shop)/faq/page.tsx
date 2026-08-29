@@ -30,7 +30,7 @@ const FAQS: {
     id: 'shipping',
     question: 'How long does delivery take?',
     answer:
-      'Orders within Pakistan are typically delivered in 2 to 5 business days. We offer complimentary shipping on orders over Rs 8,000.',
+      'Orders within Pakistan are typically delivered in 2 to 5 business days. We offer complimentary shipping on orders over Rs 3,300.',
   },
   {
     id: 'returns',

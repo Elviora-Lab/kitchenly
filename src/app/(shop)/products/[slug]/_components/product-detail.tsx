@@ -6,6 +6,7 @@ import { stripSupplierBoilerplate } from '@/lib/seo/metadata';
 import { ProductCard } from '@/design-system/patterns/product-card';
 import { Breadcrumb } from '@/design-system/primitives/breadcrumb';
 import { Section } from '@/design-system/primitives/section';
+import { FreeDeliveryBanner } from '@/components/commerce/free-delivery-banner';
 
 import { RecentlyViewed } from '@/features/recommendations/components/recently-viewed';
 import { RecentlyViewedTracker } from '@/features/recommendations/components/recently-viewed-tracker';
@@ -123,6 +124,8 @@ export async function ProductDetail({
           />
         ) : null}
         <Breadcrumb items={[...crumbTrail, { label: product.name }]} />
+
+        <FreeDeliveryBanner variant="compact" />
 
         <ProductExperience
           productId={product.id}
