@@ -11,6 +11,14 @@ import { requireAdmin } from '@/server/auth/guards';
 import { promotionsService } from '@/server/services/promotions.service';
 import { idInput, idToggleActiveInput } from '@/server/validators/admin-common.schema';
 
+function revalidateSpendDiscountSurfaces() {
+  revalidatePath('/admin/coupons');
+  revalidatePath('/');
+  revalidatePath('/cart');
+  revalidatePath('/checkout');
+  revalidatePath('/api/v1/promotions/spend-tiers');
+}
+
 const tierBody = z
   .object({
     minSubtotal: z.coerce.number().positive().max(10_000_000),
@@ -27,7 +35,7 @@ export const createSpendTier = withAction(async (input: z.infer<typeof tierBody>
   const { minSubtotal, discountAmount } = tierBody.parse(input);
   await prisma.spendDiscountTier.create({ data: { minSubtotal, discountAmount } });
   await promotionsService.invalidateDisplay();
-  revalidatePath('/admin/coupons');
+  revalidateSpendDiscountSurfaces();
   return { ok: true };
 });
 
@@ -40,7 +48,7 @@ export const toggleSpendTier = withAction(async (input: { id: string; isActive: 
     data: { isActive },
   });
   await promotionsService.invalidateDisplay();
-  revalidatePath('/admin/coupons');
+  revalidateSpendDiscountSurfaces();
   return { ok: true };
 });
 
@@ -50,7 +58,7 @@ export const deleteSpendTier = withAction(async (input: { id: string }) => {
   const { id } = idInput.parse(input);
   await prisma.spendDiscountTier.delete({ where: { id } });
   await promotionsService.invalidateDisplay();
-  revalidatePath('/admin/coupons');
+  revalidateSpendDiscountSurfaces();
   return { ok: true };
 });
 
@@ -59,6 +67,6 @@ export const setSpendDiscountEnabled = withAction(async (input: { enabled: boole
   await requireAdmin();
   await promotionsService.setEnabled(Boolean(input.enabled));
   await promotionsService.invalidateDisplay();
-  revalidatePath('/admin/coupons');
+  revalidateSpendDiscountSurfaces();
   return { ok: true };
 });

@@ -139,8 +139,7 @@ export default async function HomePage() {
   // Social proof is only honest at volume — below 30 reviews the hero line
   // and the "rated by" framing stay silent.
   const proofGate = reviewSummary.count >= 30;
-  const ladderTiers =
-    spendTiers.length > 0 ? spendTiers : [{ minSubtotal: 1000, discountAmount: 50 }];
+  const ladderTiers = spendTiers;
 
   return (
     <>
