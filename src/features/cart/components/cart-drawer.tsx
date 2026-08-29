@@ -7,6 +7,8 @@ import { ShoppingBag } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { closeCart, toggleCart } from '@/store/slices/ui-slice';
 
+import { FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
+
 import { EmptyState } from '@/design-system/primitives/empty-state';
 import { Price } from '@/design-system/primitives/price';
 import { QuantitySelector } from '@/design-system/primitives/quantity-selector';
@@ -90,7 +92,7 @@ export function CartDrawer() {
           <SheetTitle>Your cart</SheetTitle>
           <SheetDescription>
             {count > 0
-              ? `${count} item${count === 1 ? '' : 's'} — free delivery over Rs 8,000.`
+              ? `${count} item${count === 1 ? '' : 's'} — free delivery over Rs ${FREE_SHIPPING_THRESHOLD.toLocaleString('en-US')}.`
               : 'Your cart is currently empty.'}
           </SheetDescription>
         </SheetHeader>

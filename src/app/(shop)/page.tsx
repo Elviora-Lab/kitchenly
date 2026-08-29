@@ -6,12 +6,14 @@ import { routes } from '@/config/routes';
 import { siteConfig } from '@/config/site';
 
 import { buildMetadata } from '@/lib/seo/metadata';
+import { FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 
 import { ProductCard } from '@/design-system/patterns/product-card';
 import { CountUp } from '@/design-system/primitives/count-up';
 import { Rating } from '@/design-system/primitives/rating';
 import { Reveal } from '@/design-system/primitives/reveal';
 import { Section, SectionHeading } from '@/design-system/primitives/section';
+import { FreeDeliveryBanner } from '@/components/commerce/free-delivery-banner';
 import { PromoCodeChip } from '@/components/commerce/promo-code-chip';
 import { SnapRail } from '@/components/commerce/snap-rail';
 import { Button } from '@/components/ui/button';
@@ -49,7 +51,7 @@ export const metadata = buildMetadata({
   // domain and Organization schema rather than on the title tag.
   title: 'Home, Kitchen & Everyday Essentials Online in Pakistan',
   description:
-    'Shop practical home, kitchen and everyday essentials online in Pakistan — organizers, gadgets, baby, beauty and decor. Cash on delivery, free over Rs 8,000.',
+    'Shop practical home, kitchen and everyday essentials online in Pakistan — organizers, gadgets, baby, beauty and decor. Cash on delivery, free over Rs 3,300.',
   path: '/',
   keywords: [...siteConfig.keywords],
 });
@@ -58,7 +60,7 @@ export const metadata = buildMetadata({
 // bestsellers surface without rendering fresh on every request.
 export const revalidate = 300;
 
-const FREE_DELIVERY_AT = 8000;
+const FREE_DELIVERY_AT = FREE_SHIPPING_THRESHOLD;
 
 /**
  * "The Honest Ledger" — a decision-journey homepage. The order is the
@@ -239,7 +241,7 @@ export default async function HomePage() {
             {[
               { icon: ShieldCheck, title: 'Cash on delivery', sub: 'Nationwide' },
               { icon: RotateCcw, title: 'Easy returns', sub: 'Within 2–3 days' },
-              { icon: Truck, title: 'Free delivery', sub: 'Over Rs 8,000' },
+              { icon: Truck, title: 'Free delivery', sub: 'Over Rs 3,300' },
             ].map((s, i) => (
               <Reveal key={s.title} inView delay={i * 0.06} className="bg-card">
                 <div className="flex h-full min-h-11 items-center gap-3 px-4 py-5 transition-colors duration-300 ease-swift hover:bg-brand-mist/40 md:justify-center">
@@ -283,6 +285,12 @@ export default async function HomePage() {
           </div>
         </div>
       </div>
+
+      <Section id="free-delivery" size="sm" className="scroll-mt-56 py-10 md:scroll-mt-64 md:py-12">
+        <div className="container">
+          <FreeDeliveryBanner variant="home" />
+        </div>
+      </Section>
 
       {/* ——— Flash sale — urgency, straight after the trust ledger ——— */}
       {flashSale && <FlashSaleSection sale={flashSale} />}

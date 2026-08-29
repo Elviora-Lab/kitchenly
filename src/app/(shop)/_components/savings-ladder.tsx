@@ -17,7 +17,7 @@ type Col = { kind: 'origin' } | { kind: 'tier'; spend: number; save: number } | 
 
 /**
  * Spend & Save ladder — the goal-gradient made visible BEFORE the cart.
- * Every number is the store's real published policy (tiers + the Rs 8,000
+ * Every number is the store's real published policy (tiers + the Rs 3,300
  * free-delivery summit); nothing is fabricated, so the motivation is honest.
  *
  * The rail runs cool→warm (teal → ember) so the eye reads it as a climb that
@@ -27,7 +27,7 @@ type Col = { kind: 'origin' } | { kind: 'tier'; spend: number; save: number } | 
  */
 export function SavingsLadder({
   tiers,
-  freeDeliveryAt = 8000,
+  freeDeliveryAt = 3300,
 }: {
   tiers: LadderTier[];
   freeDeliveryAt?: number;

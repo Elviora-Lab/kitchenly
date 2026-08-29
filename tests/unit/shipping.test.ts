@@ -68,7 +68,7 @@ describe('shipping totals', () => {
     expect(totals.gst).toBe(0);
     expect(totals.codTax).toBe(0);
     expect(totals.taxAmount).toBe(0);
-    expect(totals.total).toBe(8000);
+    expect(totals.total).toBe(FREE_SHIPPING_THRESHOLD);
   });
 
   it('shows Karachi as the starting shipping rate', () => {

@@ -25,7 +25,7 @@ export const OTHER_PROVINCE_SHIPPING_FEE = 220;
  * amount ship free. Judged pre-discount so a Spend & Save reward can't cancel
  * free shipping.
  */
-export const FREE_SHIPPING_THRESHOLD = 8000;
+export const FREE_SHIPPING_THRESHOLD = 3300;
 
 /** Our product line is ~120 g; used when a variant has no explicit weight. */
 export const DEFAULT_ITEM_WEIGHT_KG = 0.12;
