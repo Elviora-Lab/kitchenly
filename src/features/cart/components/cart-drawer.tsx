@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ShoppingBag } from 'lucide-react';
+import { ArrowRight, Lock, ShoppingBag } from 'lucide-react';
 
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { closeCart, toggleCart } from '@/store/slices/ui-slice';
@@ -12,7 +12,9 @@ import { FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import { EmptyState } from '@/design-system/primitives/empty-state';
 import { Price } from '@/design-system/primitives/price';
 import { QuantitySelector } from '@/design-system/primitives/quantity-selector';
+import { CartCheckoutNudge } from '@/components/commerce/cart-checkout-nudge';
 import { FlashSaleNotice } from '@/components/commerce/flash-sale-notice';
+import { TrustBar } from '@/components/commerce/trust-bar';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -89,10 +91,10 @@ export function CartDrawer() {
     <Sheet open={open} onOpenChange={(o) => (o ? null : dispatch(closeCart()))}>
       <SheetContent side="right" className="w-full sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>Your cart</SheetTitle>
+          <SheetTitle>{count > 0 ? 'Added to cart' : 'Your cart'}</SheetTitle>
           <SheetDescription>
             {count > 0
-              ? `${count} item${count === 1 ? '' : 's'} — free delivery over Rs ${FREE_SHIPPING_THRESHOLD.toLocaleString('en-US')}.`
+              ? `${count} item${count === 1 ? '' : 's'} ready for checkout. Free delivery over Rs ${FREE_SHIPPING_THRESHOLD.toLocaleString('en-US')}.`
               : 'Your cart is currently empty.'}
           </SheetDescription>
         </SheetHeader>
@@ -113,7 +115,10 @@ export function CartDrawer() {
           ) : (
             <ul className="flex flex-col gap-5">
               {cart.lines.map((line) => (
-                <li key={`${line.productId}-${line.variantId}`} className="flex gap-4">
+                <li
+                  key={`${line.productId}-${line.variantId}`}
+                  className="flex gap-4 rounded-lg border border-transparent p-1 transition-colors duration-300 hover:border-border hover:bg-muted/20"
+                >
                   <div className="relative size-24 shrink-0 overflow-hidden rounded-md border border-border bg-white">
                     {line.imageUrl ? (
                       <Image
@@ -176,24 +181,29 @@ export function CartDrawer() {
                 currency={cart.lines[0]?.currency ?? 'PKR'}
               />
             ) : null}
+            <CartCheckoutNudge
+              subtotal={subtotal}
+              currency={cart.lines[0]?.currency ?? 'PKR'}
+              compact
+            />
             <RewardsLadder subtotal={subtotal} currency={cart.lines[0]?.currency ?? 'PKR'} />
             <div className="flex items-center justify-between text-sm">
               <span className="eyebrow">Subtotal</span>
               <Price amount={subtotal} currency={cart.lines[0]?.currency ?? 'PKR'} size="lg" />
             </div>
-            <p className="text-balance text-xs text-muted-foreground">
-              Shipping and discounts are calculated at checkout.
-            </p>
             <Button asChild size="lg" variant="cta" uppercase>
               <Link href="/checkout" onClick={() => dispatch(closeCart())}>
-                Checkout
+                <Lock className="size-4" aria-hidden />
+                Secure checkout
+                <ArrowRight className="size-4" aria-hidden />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button asChild size="lg" variant="ghost">
               <Link href="/cart" onClick={() => dispatch(closeCart())}>
                 View cart
               </Link>
             </Button>
+            <TrustBar />
           </SheetFooter>
         ) : null}
       </SheetContent>

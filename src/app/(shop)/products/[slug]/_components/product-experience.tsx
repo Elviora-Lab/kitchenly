@@ -54,6 +54,7 @@ export type IngredientItem = { id: string; name: string; description?: string | 
 
 type Props = {
   productId: string;
+  productSlug: string;
   productName: string;
   brandName?: string;
   brandSlug?: string;
@@ -74,6 +75,7 @@ type Props = {
 
 export function ProductExperience({
   productId,
+  productSlug,
   productName,
   brandName,
   brandSlug,
@@ -167,8 +169,8 @@ export function ProductExperience({
     cart.add({
       productId,
       variantId: selected.id,
-      slug: '',
-      name: selected.name,
+      slug: productSlug,
+      name: variants.length > 1 ? `${productName} - ${selected.name}` : productName,
       imageUrl: active?.url ?? '',
       // `currentPrice`, not `selected.price` — the optimistic line must match
       // what the server will store, including a sale that expired mid-visit.
@@ -512,7 +514,7 @@ export function ProductExperience({
       </div>
 
       {showSticky && canAdd && !outOfStock ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 shadow-elevated backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 shadow-elevated backdrop-blur motion-safe:animate-in motion-safe:slide-in-from-bottom-3">
           <div className="container flex items-center gap-3 py-3">
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{productName}</p>

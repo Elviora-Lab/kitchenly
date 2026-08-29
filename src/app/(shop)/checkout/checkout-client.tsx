@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAppSelector } from '@/store/hooks';
@@ -462,7 +463,8 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
           </p>
         ) : null}
         <Button size="lg" variant="cta" uppercase loading={pending} onClick={handlePlaceOrder}>
-          Place order
+          <Lock className="size-4" aria-hidden />
+          Place COD order
         </Button>
         <TrustBar className="pt-1" />
       </aside>

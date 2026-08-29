@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { ArrowRight, Lock } from 'lucide-react';
 
 import { useAppSelector } from '@/store/hooks';
 
@@ -13,6 +14,7 @@ import { cheapestShippingFrom, FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import { EmptyState } from '@/design-system/primitives/empty-state';
 import { Price } from '@/design-system/primitives/price';
 import { QuantitySelector } from '@/design-system/primitives/quantity-selector';
+import { CartCheckoutNudge } from '@/components/commerce/cart-checkout-nudge';
 import { FlashSaleNotice } from '@/components/commerce/flash-sale-notice';
 import { TrustBar } from '@/components/commerce/trust-bar';
 import { Button } from '@/components/ui/button';
@@ -110,7 +112,7 @@ export function CartPageClient() {
   }
 
   return (
-    <div className="flex flex-col gap-16">
+    <div className="flex flex-col gap-16 pb-24 lg:pb-0">
       <div className="grid gap-10 lg:grid-cols-[1fr_360px]">
         <ul className="flex flex-col divide-y divide-border">
           {cart.lines.map((line) => (
@@ -165,6 +167,7 @@ export function CartPageClient() {
 
         <aside className="flex h-fit flex-col gap-4 rounded-lg border border-border bg-card p-6 lg:sticky lg:top-24">
           <h2 className="font-serif text-2xl font-light">Order summary</h2>
+          <CartCheckoutNudge subtotal={subtotal} currency={currency} />
           {flashSale ? (
             <FlashSaleNotice
               title={flashSale.title}
@@ -210,10 +213,29 @@ export function CartPageClient() {
             shown at checkout before you place the order.
           </p>
           <Button asChild size="lg" variant="cta" uppercase>
-            <Link href="/checkout">Proceed to checkout</Link>
+            <Link href="/checkout">
+              <Lock className="size-4" aria-hidden />
+              Secure checkout
+              <ArrowRight className="size-4" aria-hidden />
+            </Link>
           </Button>
           <TrustBar />
         </aside>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 p-3 shadow-elevated backdrop-blur lg:hidden">
+        <div className="container flex items-center gap-3 px-0">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Cart total</p>
+            <Price amount={total} currency={currency} size="sm" />
+          </div>
+          <Button asChild size="lg" variant="cta" uppercase className="shrink-0">
+            <Link href="/checkout">
+              <Lock className="size-4" aria-hidden />
+              Checkout
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <CartRecommendations />

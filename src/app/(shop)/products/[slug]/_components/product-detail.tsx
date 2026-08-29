@@ -129,6 +129,7 @@ export async function ProductDetail({
 
         <ProductExperience
           productId={product.id}
+          productSlug={product.slug}
           productName={product.name}
           brandName={product.brand?.name ?? undefined}
           brandSlug={product.brand?.slug ?? undefined}
