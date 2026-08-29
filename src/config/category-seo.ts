@@ -69,7 +69,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
       },
       {
         heading: 'Delivery and payment',
-        text: 'Kitchen orders ship across Pakistan in 2–5 working days with cash on delivery available nationwide, so you pay once the box is in your hands. Delivery is free over Rs 8,000; below that the exact courier charge for your city is shown at checkout before you confirm.',
+        text: 'Kitchen orders ship across Pakistan in 2–5 working days with cash on delivery available nationwide, so you pay once the box is in your hands. Delivery is free over Rs 3,300; below that the exact courier charge for your city is shown at checkout before you confirm.',
       },
     ],
     keywords: [
@@ -102,7 +102,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
       },
       {
         heading: 'Ordering and delivery',
-        text: 'Everything in Home & Living ships nationwide in 2–5 working days, cash on delivery, with free shipping once your order passes Rs 8,000. Returns are open for 3 days after delivery if something is not what you expected.',
+        text: 'Everything in Home & Living ships nationwide in 2–5 working days, cash on delivery, with free shipping once your order passes Rs 3,300. Returns are open for 3 days after delivery if something is not what you expected.',
       },
     ],
     keywords: [
@@ -134,7 +134,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
       },
       {
         heading: 'Delivery across Pakistan',
-        text: 'Organizers are light, so they ship quickly — 2–5 working days nationwide, cash on delivery, free over Rs 8,000. If a size does not suit your wardrobe, returns are open for 3 days after delivery.',
+        text: 'Organizers are light, so they ship quickly — 2–5 working days nationwide, cash on delivery, free over Rs 3,300. If a size does not suit your wardrobe, returns are open for 3 days after delivery.',
       },
     ],
     keywords: [
@@ -166,7 +166,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
       },
       {
         heading: 'Ordering, delivery and returns',
-        text: 'Nationwide delivery in 2–5 working days with cash on delivery. Free shipping over Rs 8,000, and 3 days from delivery to return anything unopened that is not right for you.',
+        text: 'Nationwide delivery in 2–5 working days with cash on delivery. Free shipping over Rs 3,300, and 3 days from delivery to return anything unopened that is not right for you.',
       },
     ],
     keywords: [
@@ -198,7 +198,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
       },
       {
         heading: 'Delivery and payment',
-        text: 'Gadgets ship across Pakistan in 2–5 working days, cash on delivery available, free over Rs 8,000. Anything electrical arrives ready to charge, and returns stay open for 3 days after delivery.',
+        text: 'Gadgets ship across Pakistan in 2–5 working days, cash on delivery available, free over Rs 3,300. Anything electrical arrives ready to charge, and returns stay open for 3 days after delivery.',
       },
     ],
     keywords: [
@@ -230,7 +230,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
       },
       {
         heading: 'Ordering and delivery',
-        text: 'Decor ships nationwide in 2–5 working days with cash on delivery, free over Rs 8,000. Adhesive items are packed flat to arrive uncreased; if something arrives damaged, tell us within 3 days of delivery.',
+        text: 'Decor ships nationwide in 2–5 working days with cash on delivery, free over Rs 3,300. Adhesive items are packed flat to arrive uncreased; if something arrives damaged, tell us within 3 days of delivery.',
       },
     ],
     keywords: [
@@ -262,7 +262,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
       },
       {
         heading: 'Delivery, payment and returns',
-        text: 'Nationwide delivery in 2–5 working days with cash on delivery, free over Rs 8,000. Returns are open 3 days from delivery — please check feeding and safety items on arrival and tell us straight away if anything is not right.',
+        text: 'Nationwide delivery in 2–5 working days with cash on delivery, free over Rs 3,300. Returns are open 3 days from delivery — please check feeding and safety items on arrival and tell us straight away if anything is not right.',
       },
     ],
     keywords: [

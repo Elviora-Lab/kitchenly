@@ -12,6 +12,7 @@ import { openCart } from '@/store/slices/ui-slice';
 
 import { analytics } from '@/lib/analytics';
 import { cn } from '@/lib/cn';
+import { FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 
 import { Price } from '@/design-system/primitives/price';
 import { QuantitySelector } from '@/design-system/primitives/quantity-selector';
@@ -462,7 +463,8 @@ export function ProductExperience({
             ) : null}
 
             <p className="text-xs text-muted-foreground">
-              Free delivery over Rs 8,000 · Cash on delivery · 2–3 day returns
+              Free delivery over Rs {FREE_SHIPPING_THRESHOLD.toLocaleString('en-US')} · Cash on
+              delivery · 2–3 day returns
             </p>
             <TrustBar />
           </div>
@@ -500,8 +502,9 @@ export function ProductExperience({
             <AccordionItem value="shipping">
               <AccordionTrigger>Shipping &amp; returns</AccordionTrigger>
               <AccordionContent>
-                Free delivery on orders over Rs 8,000, cash on delivery nationwide. Easy 2–3 day
-                returns on unused items in original packaging.
+                Free delivery on orders over Rs {FREE_SHIPPING_THRESHOLD.toLocaleString('en-US')},
+                cash on delivery nationwide. Easy 2–3 day returns on unused items in original
+                packaging.
               </AccordionContent>
             </AccordionItem>
           </Accordion>

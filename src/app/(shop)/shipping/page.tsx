@@ -15,6 +15,7 @@ export const metadata = buildMetadata({
 
 export default function ShippingPage() {
   const whatsapp = siteConfig.contact.phone;
+  const freeShippingOver = siteConfig.policy.freeShippingOver.toLocaleString('en-US');
   // wa.me needs the number in international format with no +, spaces, or dashes.
   const waHref = `https://wa.me/${whatsapp.replace(/\D/g, '')}`;
 
@@ -32,7 +33,7 @@ export default function ShippingPage() {
           <h2 className="editorial-heading text-display-sm">Shipping</h2>
           <ul className="flex flex-col gap-3 text-pretty leading-relaxed text-muted-foreground">
             <li>Nationwide delivery across Pakistan in 2 to 5 business days.</li>
-            <li>Free shipping on orders over Rs 8,000.</li>
+            <li>Free shipping on orders over Rs {freeShippingOver}.</li>
             <li>Below that, Karachi delivery is a flat Rs 200.</li>
             <li>Sindh and all other provinces are a flat Rs 220.</li>
             <li>The exact amount is always shown at checkout before you place the order.</li>
