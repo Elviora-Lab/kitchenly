@@ -97,8 +97,10 @@ const serverEnvSchema = z.object({
   // PostEx courier (Pakistan) — merchant API token + optional pickup address code.
   POSTEX_API_TOKEN: optionalStr,
   POSTEX_PICKUP_ADDRESS_CODE: optionalStr,
-  // Firebase Cloud Messaging HTTP v1 sender credentials. Public browser config
-  // lives in NEXT_PUBLIC_FIREBASE_* above; these authorize server-side sends.
+  // Firebase Cloud Messaging. Prefer pasting the whole service-account JSON
+  // into FCM_SERVICE_ACCOUNT_JSON (Vercel-friendly). The split fields are the
+  // same values as admin.credential.cert({ projectId, clientEmail, privateKey }).
+  FCM_SERVICE_ACCOUNT_JSON: optionalStr,
   FCM_PROJECT_ID: optionalStr,
   FCM_CLIENT_EMAIL: optionalStr,
   FCM_PRIVATE_KEY: optionalStr,
@@ -222,6 +224,7 @@ export const serverEnv = (() => {
     META_ADS_ACCOUNT_ID: process.env.META_ADS_ACCOUNT_ID,
     POSTEX_API_TOKEN: process.env.POSTEX_API_TOKEN,
     POSTEX_PICKUP_ADDRESS_CODE: process.env.POSTEX_PICKUP_ADDRESS_CODE,
+    FCM_SERVICE_ACCOUNT_JSON: process.env.FCM_SERVICE_ACCOUNT_JSON,
     FCM_PROJECT_ID: process.env.FCM_PROJECT_ID,
     FCM_CLIENT_EMAIL: process.env.FCM_CLIENT_EMAIL,
     FCM_PRIVATE_KEY: process.env.FCM_PRIVATE_KEY,

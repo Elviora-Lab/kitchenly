@@ -1,6 +1,7 @@
 import 'server-only';
 
-import { JWT } from 'google-auth-library';
+import { type App, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getMessaging } from 'firebase-admin/messaging';
 
 import { serverEnv } from '@/config/env';
 
@@ -13,77 +14,109 @@ type PushMessage = {
   data?: Record<string, string>;
 };
 
-const SCOPE = 'https://www.googleapis.com/auth/firebase.messaging';
+type ServiceAccountFields = {
+  projectId: string;
+  clientEmail: string;
+  privateKey: string;
+};
+
+/**
+ * Same credentials you'd pass to:
+ *   admin.initializeApp({ credential: admin.credential.cert(serviceAccount) })
+ *
+ * Prefer one of:
+ * - `FCM_SERVICE_ACCOUNT_JSON` — full service-account JSON as a single secret
+ * - or `FCM_PROJECT_ID` + `FCM_CLIENT_EMAIL` + `FCM_PRIVATE_KEY`
+ */
+function resolveServiceAccount(): ServiceAccountFields | null {
+  const rawJson = serverEnv.FCM_SERVICE_ACCOUNT_JSON;
+  if (rawJson) {
+    try {
+      const parsed = JSON.parse(rawJson) as {
+        project_id?: string;
+        client_email?: string;
+        private_key?: string;
+      };
+      if (parsed.project_id && parsed.client_email && parsed.private_key) {
+        return {
+          projectId: parsed.project_id,
+          clientEmail: parsed.client_email,
+          privateKey: parsed.private_key.replace(/\\n/g, '\n'),
+        };
+      }
+      console.warn('[fcm] FCM_SERVICE_ACCOUNT_JSON is missing project_id/client_email/private_key');
+    } catch {
+      console.warn('[fcm] FCM_SERVICE_ACCOUNT_JSON is not valid JSON');
+    }
+  }
+
+  if (serverEnv.FCM_PROJECT_ID && serverEnv.FCM_CLIENT_EMAIL && serverEnv.FCM_PRIVATE_KEY) {
+    return {
+      projectId: serverEnv.FCM_PROJECT_ID,
+      clientEmail: serverEnv.FCM_CLIENT_EMAIL,
+      privateKey: serverEnv.FCM_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    };
+  }
+
+  return null;
+}
 
 export function fcmEnabled(): boolean {
-  return Boolean(
-    serverEnv.FCM_PROJECT_ID && serverEnv.FCM_CLIENT_EMAIL && serverEnv.FCM_PRIVATE_KEY,
-  );
+  return resolveServiceAccount() !== null;
 }
 
-function privateKey(): string {
-  return (serverEnv.FCM_PRIVATE_KEY ?? '').replace(/\\n/g, '\n');
-}
+function getAdminApp(): App | null {
+  const account = resolveServiceAccount();
+  if (!account) return null;
 
-async function accessToken(): Promise<string | null> {
-  if (!fcmEnabled()) return null;
-  const client = new JWT({
-    email: serverEnv.FCM_CLIENT_EMAIL,
-    key: privateKey(),
-    scopes: [SCOPE],
+  const existing = getApps()[0];
+  if (existing) return existing;
+
+  return initializeApp({
+    credential: cert({
+      projectId: account.projectId,
+      clientEmail: account.clientEmail,
+      privateKey: account.privateKey,
+    }),
+    projectId: account.projectId,
   });
-  const token = await client.getAccessToken();
-  return typeof token === 'string' ? token : (token.token ?? null);
 }
 
 export async function sendFcmPush(message: PushMessage): Promise<boolean> {
-  const token = await accessToken();
-  if (!token || !serverEnv.FCM_PROJECT_ID) return false;
+  const app = getAdminApp();
+  if (!app) return false;
 
-  const payload = {
-    message: {
+  const link = message.url ?? '/';
+  try {
+    await getMessaging(app).send({
       token: message.token,
       notification: {
         title: message.title,
         body: message.body,
+        imageUrl: message.icon,
       },
       webpush: {
-        fcm_options: {
-          link: message.url ?? '/',
-        },
+        fcmOptions: { link },
         notification: {
           icon: message.icon ?? '/icon.png',
           badge: '/icon.png',
         },
       },
       data: {
-        url: message.url ?? '/',
+        url: link,
         ...(message.icon ? { icon: message.icon } : {}),
         ...(message.data ?? {}),
       },
-    },
-  };
-
-  try {
-    const res = await fetch(
-      `https://fcm.googleapis.com/v1/projects/${serverEnv.FCM_PROJECT_ID}/messages:send`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      },
-    );
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      console.warn('[fcm] push rejected', res.status, text.slice(0, 300));
-      return false;
-    }
+    });
     return true;
   } catch (error) {
-    console.warn('[fcm] push failed', error instanceof Error ? error.message : error);
+    const code =
+      error && typeof error === 'object' && 'code' in error
+        ? String((error as { code: unknown }).code)
+        : '';
+    // Dead tokens should be pruned by the caller when we surface this; for now
+    // log and treat as a failed delivery so the sweep can move on.
+    console.warn('[fcm] push failed', code || (error instanceof Error ? error.message : error));
     return false;
   }
 }
