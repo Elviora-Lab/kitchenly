@@ -3,7 +3,7 @@ import 'server-only';
 import { type App, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 
-import { serverEnv } from '@/config/env';
+import { publicEnv, serverEnv } from '@/config/env';
 
 type PushMessage = {
   token: string;
@@ -82,30 +82,36 @@ function getAdminApp(): App | null {
   });
 }
 
+function absoluteAssetUrl(pathOrUrl: string | undefined, fallbackPath: string): string {
+  const site = (publicEnv.NEXT_PUBLIC_SITE_URL || 'https://kitchenly.com.pk').replace(/\/$/, '');
+  const value = pathOrUrl?.trim() || fallbackPath;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `${site}${value.startsWith('/') ? value : `/${value}`}`;
+}
+
 export async function sendFcmPush(message: PushMessage): Promise<boolean> {
   const app = getAdminApp();
   if (!app) return false;
 
   const link = message.url ?? '/';
+  const icon = absoluteAssetUrl(message.icon, '/icon.png');
+  // Data-only payloads are more reliable on web: the service worker always
+  // runs onBackgroundMessage → showNotification. A top-level `notification`
+  // key often no-ops while the tab is focused (and we have no onMessage yet).
   try {
     await getMessaging(app).send({
       token: message.token,
-      notification: {
+      data: {
         title: message.title,
         body: message.body,
-        imageUrl: message.icon,
+        url: link,
+        icon,
+        badge: absoluteAssetUrl(undefined, '/icon.png'),
+        ...(message.data ?? {}),
       },
       webpush: {
+        headers: { Urgency: 'high', TTL: '3600' },
         fcmOptions: { link },
-        notification: {
-          icon: message.icon ?? '/icon.png',
-          badge: '/icon.png',
-        },
-      },
-      data: {
-        url: link,
-        ...(message.icon ? { icon: message.icon } : {}),
-        ...(message.data ?? {}),
       },
     });
     return true;
