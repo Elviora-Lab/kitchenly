@@ -28,12 +28,15 @@ export const pushRecoveryService = {
 
     const idleBefore = minutesAgo(now, MIN_IDLE_MINUTES);
     const staleAfter = hoursAgo(now, MAX_CART_AGE_HOURS);
+    // Active token is the source of truth. Do not require notificationPermission
+    // === 'granted' — that field was getting reset to `default` on cart events.
+    // Still skip explicit denies.
     const visitors = await prisma.marketingVisitor.findMany({
       where: {
-        notificationPermission: 'granted',
         pushSubscribedAt: { not: null },
         cartId: { not: null },
         pushTokens: { some: { isActive: true } },
+        NOT: { notificationPermission: 'denied' },
       },
       include: {
         pushTokens: {

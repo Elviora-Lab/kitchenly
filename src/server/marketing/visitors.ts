@@ -94,7 +94,7 @@ export async function upsertMarketingVisitor(req: Request, input: VisitorIdentit
     where: {
       OR: [{ anonymousId: input.anonymousId }, { guestId }],
     },
-    select: { id: true, firstPath: true },
+    select: { id: true, firstPath: true, notificationPermission: true },
   });
 
   const cart = await prisma.cart.findFirst({
@@ -103,6 +103,11 @@ export async function upsertMarketingVisitor(req: Request, input: VisitorIdentit
       : { sessionId: guestId },
     select: { id: true },
   });
+
+  // Only update permission when the client explicitly sent one. Event logs and
+  // partial visitor syncs omit this field — previously we wrote `default` and
+  // wiped `granted`, which made abandoned-cart push permanently skip them.
+  const explicitPermission = trim(input.notificationPermission, 16);
 
   const data = {
     anonymousId: input.anonymousId,
@@ -120,8 +125,12 @@ export async function upsertMarketingVisitor(req: Request, input: VisitorIdentit
     lastPath: trim(input.lastPath, 512),
     referrer: trim(input.referrer, 512),
     deviceType: trim(input.deviceType, 32),
-    notificationPermission: trim(input.notificationPermission, 16) ?? 'default',
     lastSeenAt: new Date(),
+    ...(explicitPermission
+      ? { notificationPermission: explicitPermission }
+      : existing
+        ? {}
+        : { notificationPermission: 'default' }),
   };
 
   if (existing) {
