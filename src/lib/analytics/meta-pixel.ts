@@ -40,7 +40,7 @@ type TrackOpts = { eventID?: string };
 
 type QueuedPixelCall =
   | { kind: 'track'; event: string; params?: PixelParams; opts?: TrackOpts }
-  | { kind: 'trackCustom'; event: string; params?: PixelParams }
+  | { kind: 'trackCustom'; event: string; params?: PixelParams; opts?: TrackOpts }
   | { kind: 'identify'; em?: string; ph?: string };
 
 const MAX_QUEUED_PIXEL_CALLS = 50;
@@ -67,7 +67,11 @@ function runPixelCall(call: QueuedPixelCall): void {
     return;
   }
   if (call.kind === 'trackCustom') {
-    window.fbq?.('trackCustom', call.event, call.params);
+    if (call.opts?.eventID) {
+      window.fbq?.('trackCustom', call.event, call.params, { eventID: call.opts.eventID });
+    } else {
+      window.fbq?.('trackCustom', call.event, call.params);
+    }
     return;
   }
   window.fbq?.('init', FB_PIXEL_ID, {
@@ -95,9 +99,9 @@ export function fbTrack(event: string, params?: PixelParams, opts?: TrackOpts): 
 }
 
 /** Fire a custom (non-standard) event via `trackCustom`. */
-export function fbTrackCustom(event: string, params?: PixelParams): void {
+export function fbTrackCustom(event: string, params?: PixelParams, opts?: TrackOpts): void {
   if (!pixelEnabled || typeof window === 'undefined') return;
-  const call: QueuedPixelCall = { kind: 'trackCustom', event, params };
+  const call: QueuedPixelCall = { kind: 'trackCustom', event, params, opts };
   if (!fbqReady()) {
     enqueuePixelCall(call);
     return;
@@ -257,6 +261,14 @@ export const metaPixel = {
 
   // Store-specific custom events (build Custom Conversions on these in Ads Manager).
   couponApplied: (code: string) => fbTrackCustom('CouponApplied', { coupon: code }),
+  pushSubscribed: (eventID?: string) =>
+    fbTrackCustom(
+      'PushSubscribed',
+      { content_name: 'web_push_subscription', status: 'granted' },
+      eventID ? { eventID } : undefined,
+    ),
+  highIntentVisitor: (p: { score: number; reason: string }, eventID?: string) =>
+    fbTrackCustom('HighIntentVisitor', p, eventID ? { eventID } : undefined),
   backInStockNotify: (productId: string) =>
     fbTrackCustom('BackInStockNotify', { content_ids: [productId], content_type: 'product' }),
   skincareAssistant: () => fbTrackCustom('SkincareAssistant'),

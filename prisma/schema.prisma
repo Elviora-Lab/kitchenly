@@ -1217,6 +1217,62 @@ model Notification {
   @@map("notifications")
 }
 
+model MarketingVisitor {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Browser-visible anonymous id stored in localStorage/cookie. Not PII.
+  anonymousId            String    @unique @map("anonymous_id") @db.VarChar(64)
+  /// HttpOnly guest-session anchor, when the server has minted one.
+  guestId                String?   @unique @map("guest_id") @db.VarChar(64)
+  userId                 String?   @map("user_id") @db.Uuid
+  cartId                 String?   @map("cart_id") @db.Uuid
+  fbp                    String?   @db.VarChar(255)
+  fbc                    String?   @db.VarChar(255)
+  utmSource              String?   @map("utm_source") @db.VarChar(120)
+  utmMedium              String?   @map("utm_medium") @db.VarChar(120)
+  utmCampaign            String?   @map("utm_campaign") @db.VarChar(160)
+  utmContent             String?   @map("utm_content") @db.VarChar(160)
+  utmTerm                String?   @map("utm_term") @db.VarChar(160)
+  firstPath              String?   @map("first_path") @db.VarChar(512)
+  lastPath               String?   @map("last_path") @db.VarChar(512)
+  referrer               String?   @db.VarChar(512)
+  deviceType             String?   @map("device_type") @db.VarChar(32)
+  notificationPermission String    @default("default") @map("notification_permission") @db.VarChar(16)
+  intentScore            Int       @default(0) @map("intent_score")
+  firstSeenAt            DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz
+  lastSeenAt             DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz
+  pushSubscribedAt       DateTime? @map("push_subscribed_at") @db.Timestamptz
+
+  pushTokens WebPushToken[]
+
+  @@index([guestId])
+  @@index([userId])
+  @@index([cartId])
+  @@index([intentScore, lastSeenAt])
+  @@index([lastSeenAt])
+  @@map("marketing_visitors")
+}
+
+model WebPushToken {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  visitorId              String    @map("visitor_id") @db.Uuid
+  token                  String    @unique @db.VarChar(512)
+  firebaseInstallationId String?   @map("firebase_installation_id") @db.VarChar(128)
+  permission             String    @default("granted") @db.VarChar(16)
+  platform               String?   @db.VarChar(64)
+  userAgent              String?   @map("user_agent") @db.VarChar(512)
+  isActive               Boolean   @default(true) @map("is_active")
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  lastSeenAt             DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz
+  revokedAt              DateTime? @map("revoked_at") @db.Timestamptz
+
+  visitor MarketingVisitor @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+
+  @@index([visitorId, isActive])
+  @@index([isActive, lastSeenAt])
+  @@map("web_push_tokens")
+}
+
 // =============================================================================
 //  ANALYTICS — write-heavy logs
 // =============================================================================
@@ -1343,6 +1399,45 @@ model SurveyResponse {
   @@index([kind, createdAt])
   @@index([question, answer])
   @@map("survey_responses")
+}
+
+model VisitorEventLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  visitorId  String?  @map("visitor_id") @db.Uuid
+  guestId    String?  @map("guest_id") @db.VarChar(64)
+  eventName  String   @map("event_name") @db.VarChar(64)
+  productId  String?  @map("product_id") @db.Uuid
+  variantId  String?  @map("variant_id") @db.Uuid
+  cartId     String?  @map("cart_id") @db.Uuid
+  value      Decimal? @db.Decimal(12, 2)
+  currency   String?  @db.VarChar(3)
+  scoreDelta Int      @default(0) @map("score_delta")
+  pagePath   String?  @map("page_path") @db.VarChar(512)
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([visitorId, createdAt])
+  @@index([guestId, createdAt])
+  @@index([eventName, createdAt])
+  @@index([productId, createdAt])
+  @@map("visitor_event_logs")
+}
+
+model ProductNotificationSubscription {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  visitorId String    @map("visitor_id") @db.Uuid
+  productId String    @map("product_id") @db.Uuid
+  variantId String?   @map("variant_id") @db.Uuid
+  type      String    @db.VarChar(32)
+  status    String    @default("ACTIVE") @db.VarChar(16)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  endedAt   DateTime? @map("ended_at") @db.Timestamptz
+
+  @@unique([visitorId, productId, variantId, type], map: "uq_product_push_subscription")
+  @@index([productId, type, status])
+  @@index([visitorId, status])
+  @@map("product_notification_subscriptions")
 }
 
 // =============================================================================

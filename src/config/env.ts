@@ -37,6 +37,14 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_SENTRY_DSN: optionalStr,
   NEXT_PUBLIC_GOOGLE_CLIENT_ID: optionalStr,
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalStr,
+  NEXT_PUBLIC_FIREBASE_API_KEY: optionalStr,
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: optionalStr,
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: optionalStr,
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: optionalStr,
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: optionalStr,
+  NEXT_PUBLIC_FIREBASE_APP_ID: optionalStr,
+  NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: optionalStr,
+  NEXT_PUBLIC_FIREBASE_VAPID_KEY: optionalStr,
   // Social profiles published in Organization `sameAs`. These are ENTITY
   // claims: Google uses them to decide which real-world business this domain
   // is. Only ever set a URL we actually control — a profile belonging to a
@@ -89,6 +97,11 @@ const serverEnvSchema = z.object({
   // PostEx courier (Pakistan) — merchant API token + optional pickup address code.
   POSTEX_API_TOKEN: optionalStr,
   POSTEX_PICKUP_ADDRESS_CODE: optionalStr,
+  // Firebase Cloud Messaging HTTP v1 sender credentials. Public browser config
+  // lives in NEXT_PUBLIC_FIREBASE_* above; these authorize server-side sends.
+  FCM_PROJECT_ID: optionalStr,
+  FCM_CLIENT_EMAIL: optionalStr,
+  FCM_PRIVATE_KEY: optionalStr,
   // Shared secret for cron endpoints (Vercel Cron sends it as a Bearer token).
   CRON_SECRET: optionalStr,
   // postgresql:// URLs are not valid http(s) URLs, so use a plain string check
@@ -127,6 +140,14 @@ const publicEnvSource = {
   NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+  NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+  NEXT_PUBLIC_FIREBASE_VAPID_KEY: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
   NEXT_PUBLIC_SOCIAL_INSTAGRAM: process.env.NEXT_PUBLIC_SOCIAL_INSTAGRAM,
   NEXT_PUBLIC_SOCIAL_FACEBOOK: process.env.NEXT_PUBLIC_SOCIAL_FACEBOOK,
   NEXT_PUBLIC_SOCIAL_YOUTUBE: process.env.NEXT_PUBLIC_SOCIAL_YOUTUBE,
@@ -201,6 +222,9 @@ export const serverEnv = (() => {
     META_ADS_ACCOUNT_ID: process.env.META_ADS_ACCOUNT_ID,
     POSTEX_API_TOKEN: process.env.POSTEX_API_TOKEN,
     POSTEX_PICKUP_ADDRESS_CODE: process.env.POSTEX_PICKUP_ADDRESS_CODE,
+    FCM_PROJECT_ID: process.env.FCM_PROJECT_ID,
+    FCM_CLIENT_EMAIL: process.env.FCM_CLIENT_EMAIL,
+    FCM_PRIVATE_KEY: process.env.FCM_PRIVATE_KEY,
     CRON_SECRET: process.env.CRON_SECRET,
   });
   if (!parsed.success) {

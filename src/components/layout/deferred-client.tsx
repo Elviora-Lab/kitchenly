@@ -10,3 +10,8 @@ export const ExitIntentNudge = dynamic(
   () => import('./exit-intent-nudge').then((m) => m.ExitIntentNudge),
   { ssr: false },
 );
+
+export const PushPermissionNudge = dynamic(
+  () => import('@/components/marketing/push-permission-nudge').then((m) => m.PushPermissionNudge),
+  { ssr: false },
+);

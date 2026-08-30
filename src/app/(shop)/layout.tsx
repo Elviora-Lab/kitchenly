@@ -1,4 +1,4 @@
-import { ExitIntentNudge } from '@/components/layout/deferred-client';
+import { ExitIntentNudge, PushPermissionNudge } from '@/components/layout/deferred-client';
 import { ElvioraCrossPromo } from '@/components/layout/elviora-cross-promo';
 import { MobileNav } from '@/components/layout/mobile-nav';
 import { OfferTicker } from '@/components/layout/offer-ticker';
@@ -27,6 +27,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
       <MobileNav />
       <WhatsAppWidget />
       <ExitIntentNudge />
+      <PushPermissionNudge />
       {/* Zero-party "why aren't you ordering" survey — dwell-triggered so it
           doesn't collide with the exit-intent nudge above. */}
       <Survey

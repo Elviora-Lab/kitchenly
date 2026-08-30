@@ -61,7 +61,11 @@ type CapiEventName =
   | 'AddPaymentInfo'
   | 'Subscribe'
   | 'Lead'
-  | 'Contact';
+  | 'Contact'
+  | 'PushSubscribed'
+  | 'HighIntentVisitor'
+  | 'CartRecoveryClick'
+  | 'CheckoutHesitation';
 
 /**
  * `identity` carries contact details the shopper just typed but that aren't in
@@ -372,6 +376,23 @@ export const analytics = {
     metaPixel.contact(eventId);
     capiRelay('Contact', eventId, undefined);
     ga.contact();
+  },
+
+  pushSubscribed() {
+    logDev('push_subscribed');
+    const eventId = newEventId();
+    metaPixel.pushSubscribed(eventId);
+    capiRelay('PushSubscribed', eventId, {
+      content_name: 'web_push_subscription',
+      status: 'granted',
+    });
+  },
+
+  highIntentVisitor(p: { score: number; reason: string }) {
+    logDev('high_intent_visitor', p);
+    const eventId = newEventId();
+    metaPixel.highIntentVisitor(p, eventId);
+    capiRelay('HighIntentVisitor', eventId, p);
   },
 };
 

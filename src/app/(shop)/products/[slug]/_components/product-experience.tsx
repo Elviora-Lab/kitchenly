@@ -12,6 +12,7 @@ import { openCart } from '@/store/slices/ui-slice';
 
 import { analytics } from '@/lib/analytics';
 import { cn } from '@/lib/cn';
+import { trackVisitorEvent } from '@/lib/marketing/visitor-client';
 import { FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 
 import { Price } from '@/design-system/primitives/price';
@@ -19,6 +20,7 @@ import { QuantitySelector } from '@/design-system/primitives/quantity-selector';
 import { Rating } from '@/design-system/primitives/rating';
 import { FlashCountdown } from '@/components/commerce/flash-countdown';
 import { TrustBar } from '@/components/commerce/trust-bar';
+import { ProductPushAlertButton } from '@/components/marketing/product-push-alert-button';
 import {
   Accordion,
   AccordionContent,
@@ -184,6 +186,15 @@ export function ProductExperience({
       quantity,
       price: currentPrice,
       currency,
+    });
+    trackVisitorEvent({
+      eventName: 'AddToCartIntent',
+      productId,
+      variantId: selected.id,
+      value: currentPrice * quantity,
+      currency,
+      scoreDelta: 25,
+      metadata: { quantity },
     });
     start(async () => {
       const result = await addToCart({ variantId: selected.id, quantity });
@@ -461,7 +472,18 @@ export function ProductExperience({
             <div ref={ctaRef} aria-hidden className="h-px" />
 
             {selected && !canAdd ? (
-              <BackInStockNotify key={selected.id} variantId={selected.id} />
+              <div className="flex flex-col gap-2">
+                <ProductPushAlertButton
+                  productId={productId}
+                  variantId={selected.id}
+                  type="BACK_IN_STOCK"
+                />
+                <BackInStockNotify key={selected.id} variantId={selected.id} />
+              </div>
+            ) : null}
+
+            {selected && canAdd ? (
+              <ProductPushAlertButton productId={productId} variantId={selected.id} />
             ) : null}
 
             <p className="text-xs text-muted-foreground">
