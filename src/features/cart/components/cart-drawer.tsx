@@ -89,8 +89,8 @@ export function CartDrawer() {
 
   return (
     <Sheet open={open} onOpenChange={(o) => (o ? null : dispatch(closeCart()))}>
-      <SheetContent side="right" className="w-full sm:max-w-md">
-        <SheetHeader>
+      <SheetContent side="right" className="w-full gap-0 overflow-hidden p-0 sm:max-w-md">
+        <SheetHeader className="shrink-0 border-b border-border px-6 pb-4 pt-6">
           <SheetTitle>{count > 0 ? 'Added to cart' : 'Your cart'}</SheetTitle>
           <SheetDescription>
             {count > 0
@@ -99,7 +99,9 @@ export function CartDrawer() {
           </SheetDescription>
         </SheetHeader>
 
-        <div className="my-6 flex-1 overflow-y-auto pr-1">
+        {/* min-h-0 is required so this flex child can shrink and scroll on mobile;
+            without it the promo footer eats the viewport and cart lines vanish. */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
           {cart.lines.length === 0 ? (
             <EmptyState
               title="Your cart is empty"
@@ -113,80 +115,86 @@ export function CartDrawer() {
               }
             />
           ) : (
-            <ul className="flex flex-col gap-5">
-              {cart.lines.map((line) => (
-                <li
-                  key={`${line.productId}-${line.variantId}`}
-                  className="flex gap-4 rounded-lg border border-transparent p-1 transition-colors duration-300 hover:border-border hover:bg-muted/20"
-                >
-                  <div className="relative size-24 shrink-0 overflow-hidden rounded-md border border-border bg-white">
-                    {line.imageUrl ? (
-                      <Image
-                        src={line.imageUrl}
-                        alt={line.name}
-                        fill
-                        sizes="96px"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <span
-                        aria-hidden
-                        className="absolute inset-0 grid place-items-center font-serif text-[9px] uppercase tracking-[0.2em] text-brand-steel/40"
-                      >
-                        Kitchenly
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-1 flex-col gap-1.5">
-                    <Link
-                      href={`/products/${line.slug}`}
-                      onClick={() => dispatch(closeCart())}
-                      className="line-clamp-2 text-sm font-medium leading-snug transition-colors hover:text-accent"
-                    >
-                      {line.name}
-                    </Link>
-                    <Price
-                      amount={line.unitPrice}
-                      compareAt={line.originalPrice}
-                      currency={line.currency}
-                      size="sm"
-                    />
-                    <div className="mt-auto flex items-center justify-between">
-                      <QuantitySelector
-                        value={line.quantity}
-                        onChange={(q) => handleUpdateQty(line, q)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(line)}
-                        className="text-xs uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-                      >
-                        Remove
-                      </button>
+            <div className="flex flex-col gap-4">
+              <ul className="flex flex-col gap-4">
+                {cart.lines.map((line) => (
+                  <li
+                    key={`${line.productId}-${line.variantId}`}
+                    className="flex gap-3 rounded-lg border border-transparent p-1 transition-colors duration-300 hover:border-border hover:bg-muted/20"
+                  >
+                    <div className="relative size-20 shrink-0 overflow-hidden rounded-md border border-border bg-white sm:size-24">
+                      {line.imageUrl ? (
+                        <Image
+                          src={line.imageUrl}
+                          alt={line.name}
+                          fill
+                          sizes="96px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <span
+                          aria-hidden
+                          className="absolute inset-0 grid place-items-center font-serif text-[9px] uppercase tracking-[0.2em] text-brand-steel/40"
+                        >
+                          Kitchenly
+                        </span>
+                      )}
                     </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                      <Link
+                        href={`/products/${line.slug}`}
+                        onClick={() => dispatch(closeCart())}
+                        className="line-clamp-2 text-sm font-medium leading-snug transition-colors hover:text-accent"
+                      >
+                        {line.name}
+                      </Link>
+                      <Price
+                        amount={line.unitPrice}
+                        compareAt={line.originalPrice}
+                        currency={line.currency}
+                        size="sm"
+                      />
+                      <div className="mt-auto flex items-center justify-between gap-2">
+                        <QuantitySelector
+                          value={line.quantity}
+                          onChange={(q) => handleUpdateQty(line, q)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemove(line)}
+                          className="text-xs uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="flex flex-col gap-3 border-t border-border pt-4">
+                {flashSale ? (
+                  <FlashSaleNotice
+                    title={flashSale.title}
+                    endsAt={flashSale.endsAt}
+                    savings={flashSavings}
+                    currency={cart.lines[0]?.currency ?? 'PKR'}
+                  />
+                ) : null}
+                <CartCheckoutNudge
+                  subtotal={subtotal}
+                  currency={cart.lines[0]?.currency ?? 'PKR'}
+                  compact
+                />
+                <RewardsLadder subtotal={subtotal} currency={cart.lines[0]?.currency ?? 'PKR'} />
+                <TrustBar />
+              </div>
+            </div>
           )}
         </div>
 
         {cart.lines.length > 0 ? (
-          <SheetFooter className="flex-col gap-4 sm:flex-col sm:items-stretch">
-            {flashSale ? (
-              <FlashSaleNotice
-                title={flashSale.title}
-                endsAt={flashSale.endsAt}
-                savings={flashSavings}
-                currency={cart.lines[0]?.currency ?? 'PKR'}
-              />
-            ) : null}
-            <CartCheckoutNudge
-              subtotal={subtotal}
-              currency={cart.lines[0]?.currency ?? 'PKR'}
-              compact
-            />
-            <RewardsLadder subtotal={subtotal} currency={cart.lines[0]?.currency ?? 'PKR'} />
+          <SheetFooter className="shrink-0 flex-col gap-3 border-t border-border bg-card px-6 py-4 sm:flex-col sm:items-stretch">
             <div className="flex items-center justify-between text-sm">
               <span className="eyebrow">Subtotal</span>
               <Price amount={subtotal} currency={cart.lines[0]?.currency ?? 'PKR'} size="lg" />
@@ -198,12 +206,11 @@ export function CartDrawer() {
                 <ArrowRight className="size-4" aria-hidden />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="ghost">
+            <Button asChild size="lg" variant="ghost" className="h-10">
               <Link href="/cart" onClick={() => dispatch(closeCart())}>
                 View cart
               </Link>
             </Button>
-            <TrustBar />
           </SheetFooter>
         ) : null}
       </SheetContent>
