@@ -15,6 +15,77 @@ import { BadRequestError } from '@/server/http/errors';
  */
 const BASE_URL = 'https://api.postex.pk';
 
+type PostExEnvelope<T> = {
+  statusCode?: string | number;
+  statusMessage?: string;
+  dist?: T;
+};
+
+export type PostExOperationalCity = {
+  operationalCityName: string;
+  countryName: string;
+  isPickupCity: boolean;
+  isDeliveryCity: boolean;
+};
+
+export type PostExPickupAddress = {
+  phone1: string;
+  phone2: string;
+  contactPersonName: string;
+  cityName: string;
+  address: string;
+  addressCode: string;
+};
+
+export type CreatePostExPickupAddressInput = {
+  address: string;
+  addressTypeId: 1 | 2;
+  cityName: string;
+  contactPersonName: string;
+  phone1: string;
+  phone2: string;
+  phone3?: string;
+  wareHouseManagerName?: string;
+};
+
+export type PostExOrderRow = Record<string, unknown> & {
+  orderRefNumber?: string;
+  trackingNumber?: string;
+  transactionStatus?: string;
+  cityName?: string;
+  customerName?: string;
+  customerPhone?: string;
+  invoicePayment?: number;
+  transactionDate?: string;
+};
+
+export type PostExTrackingHistoryRow = {
+  transactionStatusMessage?: string;
+  transactionStatusMessageCode?: string;
+};
+
+export type PostExTrackingDetail = PostExOrderRow & {
+  transactionStatusHistory?: PostExTrackingHistoryRow[];
+};
+
+export type PostExBulkTrackingRow = {
+  trackingNumber: string;
+  message?: string;
+  trackingResponse?: PostExTrackingDetail;
+};
+
+export type PostExShipperAdviceRow = {
+  remarks: string;
+  remarksDate: string;
+  username: string;
+};
+
+export type PostExShipperAdvice = {
+  trackingNumber: string;
+  message?: string;
+  trackingResponse: PostExShipperAdviceRow[];
+};
+
 export function isPostExConfigured(): boolean {
   return Boolean(serverEnv.POSTEX_API_TOKEN);
 }
@@ -63,6 +134,21 @@ async function postexFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return json as T;
 }
 
+function withQuery(path: string, params: Record<string, string | number | undefined>): string {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') qs.set(key, String(value));
+  }
+  const text = qs.toString();
+  return text ? `${path}?${text}` : path;
+}
+
+function cleanBody<T extends Record<string, unknown>>(body: T): T {
+  return Object.fromEntries(
+    Object.entries(body).filter(([, value]) => value !== undefined && value !== ''),
+  ) as T;
+}
+
 export type CreatePostExOrderInput = {
   cityName: string;
   customerName: string;
@@ -107,13 +193,119 @@ export async function createPostExOrder(
   return { trackingNumber: String(trackingNumber) };
 }
 
-/** Fetch the latest tracking status for a consignment. Best-effort message. */
-export async function trackPostExOrder(trackingNumber: string): Promise<{ status: string }> {
-  const json = await postexFetch<{ dist?: Record<string, unknown> }>(
+// ---------------------------------------------------------------------------
+// Merchant setup/reference APIs.
+// ---------------------------------------------------------------------------
+
+/** List PostEx operational cities, optionally filtered by Pickup or Delivery. */
+export async function getPostExOperationalCities(
+  operationalCityType?: 'Pickup' | 'Delivery',
+): Promise<PostExOperationalCity[]> {
+  const json = await postexFetch<PostExEnvelope<Array<Record<string, unknown>>>>(
+    withQuery('/services/integration/api/order/v2/get-operational-city', {
+      operationalCityType,
+    }),
+    { method: 'GET' },
+  );
+  const rows = Array.isArray(json.dist) ? json.dist : [];
+  return rows.map((r) => ({
+    operationalCityName: String(r['operationalCityName'] ?? ''),
+    countryName: String(r['countryName'] ?? ''),
+    isPickupCity: r['isPickupCity'] === true || r['isPickupCity'] === 'true',
+    isDeliveryCity: r['isDeliveryCity'] === true || r['isDeliveryCity'] === 'true',
+  }));
+}
+
+/** List merchant pickup/return addresses registered with PostEx. */
+export async function getPostExPickupAddresses(cityName?: string): Promise<PostExPickupAddress[]> {
+  const json = await postexFetch<PostExEnvelope<Array<Record<string, unknown>>>>(
+    withQuery('/services/integration/api/order/v1/get-merchant-address', { cityName }),
+    { method: 'GET' },
+  );
+  const rows = Array.isArray(json.dist) ? json.dist : [];
+  return rows.map((r) => ({
+    phone1: String(r['phone1'] ?? ''),
+    phone2: String(r['phone2'] ?? ''),
+    contactPersonName: String(r['contactPersonName'] ?? ''),
+    cityName: String(r['cityName'] ?? ''),
+    address: String(r['address'] ?? ''),
+    addressCode: String(r['addressCode'] ?? ''),
+  }));
+}
+
+/** Create a merchant pickup/return address in PostEx. */
+export async function createPostExPickupAddress(
+  input: CreatePostExPickupAddressInput,
+): Promise<{ statusMessage: string }> {
+  const json = await postexFetch<PostExEnvelope<unknown>>(
+    '/services/integration/api/order/v2/create-merchant-address',
+    { method: 'POST', body: JSON.stringify(cleanBody(input)) },
+  );
+  return { statusMessage: json.statusMessage ?? 'SUCCESSFULLY OPERATED' };
+}
+
+/** List supported PostEx order types: Normal, Reversed, Replacement. */
+export async function getPostExOrderTypes(): Promise<string[]> {
+  const json = await postexFetch<PostExEnvelope<string[]>>(
+    '/services/integration/api/order/v1/get-order-types',
+    { method: 'GET' },
+  );
+  return Array.isArray(json.dist) ? json.dist.map(String) : [];
+}
+
+/** List supported PostEx order statuses. */
+export async function getPostExOrderStatuses(): Promise<string[]> {
+  const json = await postexFetch<PostExEnvelope<string[]>>(
+    '/services/integration/api/order/v1/get-order-status',
+    { method: 'GET' },
+  );
+  return Array.isArray(json.dist) ? json.dist.map(String) : [];
+}
+
+// ---------------------------------------------------------------------------
+// Order listing/tracking APIs.
+// ---------------------------------------------------------------------------
+
+/** List unbooked orders in PostEx for a date range. */
+export async function listPostExUnbookedOrders(input: {
+  startDate: string;
+  endDate: string;
+  cityName?: string;
+}): Promise<PostExOrderRow[]> {
+  const json = await postexFetch<PostExEnvelope<PostExOrderRow[]>>(
+    withQuery('/services/integration/api/order/v2/get-unbooked-orders', input),
+    { method: 'GET' },
+  );
+  return Array.isArray(json.dist) ? json.dist : [];
+}
+
+/** List PostEx orders by status id and date range. Use 0 for every status. */
+export async function listPostExOrders(input: {
+  orderStatusID: number;
+  fromDate: string;
+  toDate: string;
+}): Promise<PostExBulkTrackingRow[]> {
+  const json = await postexFetch<PostExEnvelope<PostExBulkTrackingRow[]>>(
+    withQuery('/services/integration/api/order/v1/get-all-order', input),
+    { method: 'GET' },
+  );
+  return Array.isArray(json.dist) ? json.dist : [];
+}
+
+/** Fetch the full tracking detail for a consignment. */
+export async function getPostExTrackingDetail(
+  trackingNumber: string,
+): Promise<PostExTrackingDetail> {
+  const json = await postexFetch<PostExEnvelope<PostExTrackingDetail>>(
     `/services/integration/api/order/v1/track-order/${encodeURIComponent(trackingNumber)}`,
     { method: 'GET' },
   );
-  const dist = json.dist ?? {};
+  return json.dist ?? {};
+}
+
+/** Fetch the latest tracking status for a consignment. Best-effort message. */
+export async function trackPostExOrder(trackingNumber: string): Promise<{ status: string }> {
+  const dist = await getPostExTrackingDetail(trackingNumber);
   // Per the guide (3.8.3), the human-readable journey lives in
   // `transactionStatusHistory[]` (each entry has `transactionStatusMessage`);
   // the latest entry is the current step. `transactionStatus` is an optional
@@ -124,6 +316,24 @@ export async function trackPostExOrder(trackingNumber: string): Promise<{ status
   const latest = history.length ? history[history.length - 1]?.transactionStatusMessage : undefined;
   const status = latest || (dist['transactionStatus'] as string) || 'Unknown';
   return { status: String(status) };
+}
+
+/** Track multiple PostEx consignments in one call. */
+export async function bulkTrackPostExOrders(
+  trackingNumbers: string[],
+): Promise<PostExBulkTrackingRow[]> {
+  const list = trackingNumbers
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 50);
+  if (list.length === 0) throw new Error('No tracking numbers provided');
+  const json = await postexFetch<PostExEnvelope<PostExBulkTrackingRow[]>>(
+    withQuery('/services/integration/api/order/v1/track-bulk-order', {
+      trackingNumber: list.join(','),
+    }),
+    { method: 'GET' },
+  );
+  return Array.isArray(json.dist) ? json.dist : [];
 }
 
 // ---------------------------------------------------------------------------
@@ -146,14 +356,10 @@ const getServiceableCitiesCached = unstable_cache(
       // PostEx rejects that value with HTTP 400 (no such enum constant). The
       // param-less call returns every operational city with an `isDeliveryCity`
       // flag, so we fetch all and filter on the flag ourselves.
-      const json = await postexFetch<{ dist?: Array<Record<string, unknown>> }>(
-        '/services/integration/api/order/v2/get-operational-city',
-        { method: 'GET' },
-      );
-      const rows = Array.isArray(json.dist) ? json.dist : [];
+      const rows = await getPostExOperationalCities();
       return rows
-        .filter((r) => r['isDeliveryCity'] === true || r['isDeliveryCity'] === 'true')
-        .map((r) => normalizeCityName(String(r['operationalCityName'] ?? '')))
+        .filter((r) => r.isDeliveryCity)
+        .map((r) => normalizeCityName(r.operationalCityName))
         .filter(Boolean);
     } catch {
       return [];
@@ -205,6 +411,32 @@ export async function getPostExAirwayBill(trackingNumbers: string[]): Promise<Ar
   return res.arrayBuffer();
 }
 
+/** Generate a PostEx load sheet PDF for a pickup handoff. */
+export async function generatePostExLoadSheet(input: {
+  trackingNumbers: string[];
+  pickupAddress?: string;
+}): Promise<ArrayBuffer> {
+  const token = serverEnv.POSTEX_API_TOKEN;
+  if (!token) throw new Error('PostEx is not configured (POSTEX_API_TOKEN missing)');
+
+  const trackingNumbers = input.trackingNumbers.map((t) => t.trim()).filter(Boolean);
+  if (trackingNumbers.length === 0) throw new Error('No tracking numbers provided');
+
+  const res = await fetch(`${BASE_URL}/services/integration/api/order/v2/generate-load-sheet`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', token },
+    body: JSON.stringify(cleanBody({ trackingNumbers, pickupAddress: input.pickupAddress })),
+    cache: 'no-store',
+  });
+
+  const contentType = res.headers.get('content-type') ?? '';
+  if (!res.ok || contentType.includes('application/json')) {
+    const json = (await res.json().catch(() => null)) as { statusMessage?: string } | null;
+    throw new Error(json?.statusMessage || `PostEx load sheet failed (HTTP ${res.status})`);
+  }
+  return res.arrayBuffer();
+}
+
 // ---------------------------------------------------------------------------
 // Cancel a booked consignment (§3.13).
 // ---------------------------------------------------------------------------
@@ -215,6 +447,33 @@ export async function cancelPostExOrder(trackingNumber: string): Promise<void> {
     method: 'PUT',
     body: JSON.stringify({ trackingNumber }),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Shipper advice (§3.11–3.12).
+// ---------------------------------------------------------------------------
+
+/** Save advice for an attempted parcel: 1 = return requested, 2 = retry attempt. */
+export async function savePostExShipperAdvice(input: {
+  trackingNumber: string;
+  statusId: 1 | 2;
+  remarks: string;
+}): Promise<void> {
+  await postexFetch('/service/integration/api/order/v2/save-shipper-advice', {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+/** Read advice history for a tracking number. */
+export async function getPostExShipperAdvice(
+  trackingNumber: string,
+): Promise<PostExShipperAdvice[]> {
+  const json = await postexFetch<PostExEnvelope<PostExShipperAdvice[]>>(
+    `/service/integration/api/order/v1/get-shipper-advice/${encodeURIComponent(trackingNumber)}`,
+    { method: 'GET' },
+  );
+  return Array.isArray(json.dist) ? json.dist : [];
 }
 
 // ---------------------------------------------------------------------------
