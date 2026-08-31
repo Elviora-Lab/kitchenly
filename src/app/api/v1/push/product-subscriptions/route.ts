@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
 
+import { BadRequestError } from '@/server/http/errors';
 import { createHandler } from '@/server/http/handler';
 import { isSameSiteRequest } from '@/server/http/origin';
 import { clientIp, isRateLimited } from '@/server/http/rate-limit';
@@ -35,6 +36,13 @@ export const POST = createHandler(async (req) => {
         ? 'granted'
         : 'default',
   });
+
+  const activeTokenCount = await prisma.webPushToken.count({
+    where: { visitorId: visitor.id, isActive: true },
+  });
+  if (activeTokenCount === 0) {
+    throw new BadRequestError('Enable browser notifications before saving this alert');
+  }
 
   const existing = await prisma.productNotificationSubscription.findFirst({
     where: {

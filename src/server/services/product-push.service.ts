@@ -4,7 +4,7 @@ import { publicEnv } from '@/config/env';
 
 import { prisma } from '@/lib/db';
 
-import { fcmEnabled, sendFcmPush } from '@/server/marketing/fcm';
+import { fcmEnabled, isDeadFcmTokenCode, sendFcmPush } from '@/server/marketing/fcm';
 
 function productUrl(slug: string, visitorId: string): string {
   const to = encodeURIComponent(`/products/${slug}`);
@@ -74,17 +74,41 @@ export const productPushService = {
       });
       if (count === 0) continue;
 
-      const delivered = await sendFcmPush({
-        token: tokens[0]!.token,
-        title: 'Back in stock',
-        body: `${product.name} is available again — grab it before it goes.`,
-        url: productUrl(product.slug, sub.visitorId),
-        icon: product.images[0]?.imageUrl,
-        data: {
-          kind: 'back_in_stock',
-          product_id: product.id,
-        },
-      });
+      let delivered = false;
+      let deliveredTokenId: string | null = null;
+      const attemptedTokenIds: string[] = [];
+      const prunedTokenIds: string[] = [];
+      const failureCodes: string[] = [];
+
+      for (const token of tokens) {
+        attemptedTokenIds.push(token.id);
+        const result = await sendFcmPush({
+          token: token.token,
+          title: 'Back in stock',
+          body: `${product.name} is available again — grab it before it goes.`,
+          url: productUrl(product.slug, sub.visitorId),
+          icon: product.images[0]?.imageUrl,
+          data: {
+            kind: 'back_in_stock',
+            product_id: product.id,
+          },
+        });
+
+        if (result.delivered) {
+          delivered = true;
+          deliveredTokenId = token.id;
+          break;
+        }
+
+        if (result.code) failureCodes.push(result.code);
+        if (isDeadFcmTokenCode(result.code)) {
+          prunedTokenIds.push(token.id);
+          await prisma.webPushToken.updateMany({
+            where: { id: token.id },
+            data: { isActive: false, revokedAt: now },
+          });
+        }
+      }
 
       await prisma.visitorEventLog.create({
         data: {
@@ -93,7 +117,14 @@ export const productPushService = {
           productId: product.id,
           variantId: sub.variantId,
           scoreDelta: delivered ? 5 : 0,
-          metadata: { subscriptionId: sub.id, sentAt: now.toISOString() },
+          metadata: {
+            subscriptionId: sub.id,
+            tokenId: deliveredTokenId,
+            attemptedTokenIds,
+            prunedTokenIds,
+            failureCodes,
+            sentAt: now.toISOString(),
+          },
         },
       });
 

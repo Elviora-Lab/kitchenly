@@ -4,7 +4,7 @@ import { publicEnv } from '@/config/env';
 
 import { prisma } from '@/lib/db';
 
-import { fcmEnabled, sendFcmPush } from '@/server/marketing/fcm';
+import { fcmEnabled, isDeadFcmTokenCode, sendFcmPush } from '@/server/marketing/fcm';
 
 const MIN_IDLE_MINUTES = 30;
 const MAX_CART_AGE_HOURS = 48;
@@ -91,20 +91,41 @@ export const pushRecoveryService = {
           : `${first.product.name} is still saved in your cart.`;
       const icon = first.product.images[0]?.imageUrl;
 
-      const token = visitor.pushTokens[0];
-      if (!token) continue;
+      let delivered = false;
+      let deliveredTokenId: string | null = null;
+      const attemptedTokenIds: string[] = [];
+      const prunedTokenIds: string[] = [];
+      const failureCodes: string[] = [];
 
-      const delivered = await sendFcmPush({
-        token: token.token,
-        title,
-        body,
-        url: recoveryUrl(visitor.id),
-        icon,
-        data: {
-          kind: 'cart_recovery',
-          cart_id: cart.id,
-        },
-      });
+      for (const token of visitor.pushTokens) {
+        attemptedTokenIds.push(token.id);
+        const result = await sendFcmPush({
+          token: token.token,
+          title,
+          body,
+          url: recoveryUrl(visitor.id),
+          icon,
+          data: {
+            kind: 'cart_recovery',
+            cart_id: cart.id,
+          },
+        });
+
+        if (result.delivered) {
+          delivered = true;
+          deliveredTokenId = token.id;
+          break;
+        }
+
+        if (result.code) failureCodes.push(result.code);
+        if (isDeadFcmTokenCode(result.code)) {
+          prunedTokenIds.push(token.id);
+          await prisma.webPushToken.updateMany({
+            where: { id: token.id },
+            data: { isActive: false, revokedAt: now },
+          });
+        }
+      }
 
       await prisma.visitorEventLog.create({
         data: {
@@ -114,7 +135,10 @@ export const pushRecoveryService = {
           cartId: cart.id,
           scoreDelta: delivered ? 5 : 0,
           metadata: {
-            tokenId: token.id,
+            tokenId: deliveredTokenId,
+            attemptedTokenIds,
+            prunedTokenIds,
+            failureCodes,
             itemCount,
             sentAt: now.toISOString(),
           },

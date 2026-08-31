@@ -14,7 +14,7 @@ export const runtime = 'nodejs';
 
 const bodySchema = z.object({
   anonymousId: z.string().min(12).max(64),
-  token: z.string().min(80).max(512),
+  token: z.string().min(80).max(2048),
   firebaseInstallationId: z.string().max(128).nullable().optional(),
   permission: z.enum(['granted']),
   platform: z.string().max(64).nullable().optional(),

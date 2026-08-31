@@ -5,7 +5,11 @@ import { usePathname } from 'next/navigation';
 import { Bell, BellRing } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { firebasePushConfigured, requestPushSubscription } from '@/lib/marketing/push-client';
+import {
+  firebasePushConfigured,
+  requestPushSubscription,
+  startForegroundPushListener,
+} from '@/lib/marketing/push-client';
 import {
   syncMarketingVisitor,
   trackHighIntent,
@@ -84,6 +88,12 @@ export function PushPermissionNudge() {
   }, [eligiblePath, pathname]);
 
   useEffect(() => {
+    if (!eligiblePath || !firebasePushConfigured()) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    void startForegroundPushListener();
+  }, [eligiblePath]);
+
+  useEffect(() => {
     if (!eligiblePath) return;
     const views = incrementProductViews(pathname);
     if (views >= 2) {
@@ -157,6 +167,9 @@ export function PushPermissionNudge() {
     } else if (result.reason === 'not_configured') {
       dismissFor(7);
       toast.error('Push reminders are not configured yet');
+    } else if (result.reason === 'subscribe_failed') {
+      dismissFor(1);
+      toast.error('Could not save push reminders. Please try again.');
     } else {
       dismissFor(14);
       toast.error('Push reminders are not available on this browser');

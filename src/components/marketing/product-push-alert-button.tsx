@@ -51,10 +51,15 @@ export function ProductPushAlertButton({
         pagePath: `${window.location.pathname}${window.location.search}`,
       }),
     }).catch(() => null);
+    const json = (await res?.json().catch(() => null)) as {
+      success?: boolean;
+      data?: { subscribed?: boolean };
+      message?: string;
+    } | null;
     setPending(false);
 
-    if (!res?.ok) {
-      toast.error('Could not save this alert');
+    if (!res?.ok || !json?.success || !json.data?.subscribed) {
+      toast.error(json?.message ?? 'Could not save this alert');
       return;
     }
     setSubscribed(true);

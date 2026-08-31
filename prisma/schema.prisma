@@ -1255,7 +1255,7 @@ model MarketingVisitor {
 model WebPushToken {
   id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   visitorId              String    @map("visitor_id") @db.Uuid
-  token                  String    @unique @db.VarChar(512)
+  token                  String    @unique @db.Text
   firebaseInstallationId String?   @map("firebase_installation_id") @db.VarChar(128)
   permission             String    @default("granted") @db.VarChar(16)
   platform               String?   @db.VarChar(64)

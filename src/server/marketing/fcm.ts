@@ -14,6 +14,11 @@ type PushMessage = {
   data?: Record<string, string>;
 };
 
+export type PushDeliveryResult = {
+  delivered: boolean;
+  code?: string;
+};
+
 type ServiceAccountFields = {
   projectId: string;
   clientEmail: string;
@@ -65,6 +70,13 @@ export function fcmEnabled(): boolean {
   return resolveServiceAccount() !== null;
 }
 
+export function isDeadFcmTokenCode(code: string | undefined): boolean {
+  return (
+    code === 'messaging/registration-token-not-registered' ||
+    code === 'messaging/invalid-registration-token'
+  );
+}
+
 function getAdminApp(): App | null {
   const account = resolveServiceAccount();
   if (!account) return null;
@@ -89,15 +101,14 @@ function absoluteAssetUrl(pathOrUrl: string | undefined, fallbackPath: string): 
   return `${site}${value.startsWith('/') ? value : `/${value}`}`;
 }
 
-export async function sendFcmPush(message: PushMessage): Promise<boolean> {
+export async function sendFcmPush(message: PushMessage): Promise<PushDeliveryResult> {
   const app = getAdminApp();
-  if (!app) return false;
+  if (!app) return { delivered: false, code: 'fcm/not-configured' };
 
   const link = message.url ?? '/';
   const icon = absoluteAssetUrl(message.icon, '/icon.png');
-  // Data-only payloads are more reliable on web: the service worker always
-  // runs onBackgroundMessage → showNotification. A top-level `notification`
-  // key often no-ops while the tab is focused (and we have no onMessage yet).
+  // Data-only payloads are reliable on web because the service worker handles
+  // background delivery and the client foreground listener mirrors it while open.
   try {
     await getMessaging(app).send({
       token: message.token,
@@ -114,15 +125,13 @@ export async function sendFcmPush(message: PushMessage): Promise<boolean> {
         fcmOptions: { link },
       },
     });
-    return true;
+    return { delivered: true };
   } catch (error) {
     const code =
       error && typeof error === 'object' && 'code' in error
         ? String((error as { code: unknown }).code)
         : '';
-    // Dead tokens should be pruned by the caller when we surface this; for now
-    // log and treat as a failed delivery so the sweep can move on.
     console.warn('[fcm] push failed', code || (error instanceof Error ? error.message : error));
-    return false;
+    return { delivered: false, code };
   }
 }

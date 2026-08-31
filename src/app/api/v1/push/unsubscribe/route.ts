@@ -12,7 +12,7 @@ export const runtime = 'nodejs';
 
 const bodySchema = z.object({
   anonymousId: z.string().min(12).max(64),
-  token: z.string().min(20).max(512).optional(),
+  token: z.string().min(20).max(2048).optional(),
   pagePath: z.string().max(512).nullable().optional(),
 });
 

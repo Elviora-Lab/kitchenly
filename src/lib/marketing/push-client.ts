@@ -1,11 +1,13 @@
 'use client';
 
 import { getApps, initializeApp } from '@firebase/app';
-import { getMessaging, getToken, isSupported } from '@firebase/messaging';
+import { getMessaging, getToken, isSupported, onMessage } from '@firebase/messaging';
 
 import { publicEnv } from '@/config/env';
 
 import { getAnonymousVisitorId, visitorPayload } from './visitor-client';
+
+let foregroundListenerStarted = false;
 
 export function firebasePushConfigured(): boolean {
   return Boolean(
@@ -38,6 +40,67 @@ async function messagingClient() {
   return getMessaging(app);
 }
 
+type PushSubscribeResponse = {
+  success?: boolean;
+  data?: { subscribed?: boolean };
+};
+
+async function postPushSubscription(token: string, permission: NotificationPermission) {
+  const response = await fetch('/api/v1/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...visitorPayload(),
+      anonymousId: getAnonymousVisitorId(),
+      token,
+      permission,
+      platform: navigator.platform || null,
+      pagePath: `${window.location.pathname}${window.location.search}`,
+    }),
+  }).catch(() => null);
+
+  if (!response || response.status === 204 || !response.ok) return false;
+
+  const json = (await response.json().catch(() => null)) as PushSubscribeResponse | null;
+  return Boolean(json?.success && json.data?.subscribed);
+}
+
+export async function startForegroundPushListener(): Promise<boolean> {
+  if (foregroundListenerStarted) return true;
+  if (!firebasePushConfigured()) return false;
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
+
+  const messaging = await messagingClient();
+  if (!messaging) return false;
+
+  const registration = await navigator.serviceWorker
+    .register('/firebase-messaging-sw.js')
+    .catch(() => null);
+  if (!registration) return false;
+
+  foregroundListenerStarted = true;
+  onMessage(messaging, (payload) => {
+    const data = payload.data ?? {};
+    const title = payload.notification?.title ?? data.title ?? 'Kitchenly';
+    const body = payload.notification?.body ?? data.body ?? undefined;
+    const url = data.url ?? payload.fcmOptions?.link ?? '/';
+    const icon = payload.notification?.icon ?? data.icon ?? '/icon.png';
+    const badge = data.badge ?? '/icon.png';
+
+    registration
+      .showNotification(title, {
+        body,
+        icon,
+        badge,
+        data: { url },
+        tag: data.kind ? `kitchenly-${data.kind}` : undefined,
+      })
+      .catch(() => undefined);
+  });
+
+  return true;
+}
+
 export async function requestPushSubscription(): Promise<
   { ok: true; token: string } | { ok: false; reason: string }
 > {
@@ -59,17 +122,9 @@ export async function requestPushSubscription(): Promise<
   });
   if (!token) return { ok: false, reason: 'no_token' };
 
-  await fetch('/api/v1/push/subscribe', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      ...visitorPayload(),
-      anonymousId: getAnonymousVisitorId(),
-      token,
-      permission,
-      platform: navigator.platform || null,
-      pagePath: `${window.location.pathname}${window.location.search}`,
-    }),
-  });
+  const subscribed = await postPushSubscription(token, permission);
+  if (!subscribed) return { ok: false, reason: 'subscribe_failed' };
+
+  void startForegroundPushListener();
   return { ok: true, token };
 }
