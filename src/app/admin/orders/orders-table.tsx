@@ -13,7 +13,11 @@ import { formatDate, formatMoney } from '@/utils/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { bulkUpdateOrderStatus } from '@/server/actions/admin/orders.actions';
+import {
+  bulkBookWithPostEx,
+  bulkUpdateOrderStatus,
+  getPostExTrackingForOrders,
+} from '@/server/actions/admin/orders.actions';
 
 type Row = {
   id: string;
@@ -82,6 +86,56 @@ export function OrdersTable({ rows }: { rows: Row[] }) {
     window.open(`/admin/orders/labels?ids=${encodeURIComponent(ids)}`, '_blank');
   }
 
+  function bookSelectedWithPostEx() {
+    if (selectedIds.length === 0) return;
+    const noun = `${selectedIds.length} order${selectedIds.length === 1 ? '' : 's'}`;
+    if (!confirm(`Book ${noun} with PostEx? Status will move to PROCESSING.`)) return;
+    start(async () => {
+      const result = await bulkBookWithPostEx({ orderIds: selectedIds });
+      if (result.success) {
+        const { booked, failed, errors } = result.data;
+        if (booked > 0) toast.success(`Booked ${booked} with PostEx`);
+        if (failed > 0) {
+          toast.error(
+            `${failed} failed${errors[0] ? `: ${errors[0].message}` : ''}${failed > 1 ? '…' : ''}`,
+          );
+        }
+        setSelected(new Set());
+        router.refresh();
+      } else {
+        toast.error(result.message);
+      }
+    });
+  }
+
+  function printSelectedPostExLabels() {
+    if (selectedIds.length === 0) return;
+    start(async () => {
+      const result = await getPostExTrackingForOrders({ orderIds: selectedIds });
+      if (!result.success) {
+        toast.error(result.message);
+        return;
+      }
+      const { trackingNumbers, missing } = result.data;
+      if (trackingNumbers.length === 0) {
+        toast.error('No PostEx tracking numbers on the selected orders — book first');
+        return;
+      }
+      if (missing > 0) {
+        toast.message(`${missing} selected order(s) have no PostEx booking yet`);
+      }
+      // PostEx accepts max 10 tracking numbers per invoice request.
+      for (let i = 0; i < trackingNumbers.length; i += 10) {
+        const chunk = trackingNumbers.slice(i, i + 10);
+        window.open(
+          `/api/v1/admin/postex/label?tracking=${encodeURIComponent(chunk.join(','))}`,
+          '_blank',
+          'noopener,noreferrer',
+        );
+      }
+    });
+  }
+
   if (rows.length === 0) {
     return (
       <div className="px-4 py-10 text-center text-sm text-muted-foreground">
@@ -121,7 +175,13 @@ export function OrdersTable({ rows }: { rows: Row[] }) {
           </Button>
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={bookSelectedWithPostEx} loading={pending}>
+            Book PostEx ({selectedIds.length})
+          </Button>
+          <Button size="sm" variant="outline" onClick={printSelectedPostExLabels} loading={pending}>
+            <Printer className="size-3.5" /> PostEx AWB ({selectedIds.length})
+          </Button>
           <Button size="sm" variant="outline" onClick={printSelected}>
             <Printer className="size-3.5" /> Print labels ({selectedIds.length})
           </Button>

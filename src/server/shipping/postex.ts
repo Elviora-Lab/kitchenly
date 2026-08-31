@@ -396,8 +396,9 @@ export async function getPostExAirwayBill(trackingNumbers: string[]): Promise<Ar
   if (list.length === 0) throw new Error('No tracking numbers provided');
 
   const qs = new URLSearchParams({ trackingNumbers: list.join(',') });
+  // PostEx docs/SDK use hyphenated `get-invoice` — `getinvoice` returns HTTP 404.
   const res = await fetch(
-    `${BASE_URL}/services/integration/api/order/v1/getinvoice?${qs.toString()}`,
+    `${BASE_URL}/services/integration/api/order/v1/get-invoice?${qs.toString()}`,
     { method: 'GET', headers: { token }, cache: 'no-store' },
   );
 
@@ -405,8 +406,17 @@ export async function getPostExAirwayBill(trackingNumbers: string[]): Promise<Ar
   // envelope instead of a PDF — surface its message rather than a corrupt file.
   const contentType = res.headers.get('content-type') ?? '';
   if (!res.ok || contentType.includes('application/json')) {
-    const json = (await res.json().catch(() => null)) as { statusMessage?: string } | null;
-    throw new Error(json?.statusMessage || `PostEx label failed (HTTP ${res.status})`);
+    const json = (await res.json().catch(() => null)) as {
+      statusMessage?: string;
+      message?: string;
+      error?: string;
+    } | null;
+    throw new Error(
+      json?.statusMessage ||
+        json?.message ||
+        json?.error ||
+        `PostEx label failed (HTTP ${res.status})`,
+    );
   }
   return res.arrayBuffer();
 }

@@ -70,13 +70,11 @@ export const bulkUpdateOrderStatus = withAction(async (input: z.infer<typeof bul
 // Courier — PostEx
 // ---------------------------------------------------------------------------
 
-/** Book an order with PostEx, store the tracking number, and mark it shipped. */
+/** Book an order with PostEx, store the tracking number, and move to PROCESSING. */
 const orderIdInput = z.object({ orderId: z.string().uuid() });
 const PAYMENT_CLOSED_TO_SETTLEMENT = new Set(['REFUNDED', 'PARTIALLY_REFUNDED', 'VOIDED']);
 
-export const bookWithPostEx = withAction(async (input: { orderId: string }) => {
-  const { orderId } = orderIdInput.parse(input);
-  const session = await requireAdmin();
+async function bookOrderWithPostEx(orderId: string, changedBy: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: { items: true, shipments: true },
@@ -123,15 +121,62 @@ export const bookWithPostEx = withAction(async (input: { orderId: string }) => {
       orderId: order.id,
       courierName: 'PostEx',
       trackingNumber,
+      // Label exists; parcel is not handed to the courier yet — SHIPPED comes later.
       shipmentStatus: 'LABEL_CREATED',
-      shippedAt: new Date(),
     },
   });
-  await transitionOrder(order.id, 'SHIPPED', `Booked with PostEx (${trackingNumber})`, session.sub);
+  await transitionOrder(
+    order.id,
+    'PROCESSING',
+    `Booked with PostEx (${trackingNumber})`,
+    changedBy,
+  );
+
+  return { orderId: order.id, trackingNumber };
+}
+
+export const bookWithPostEx = withAction(async (input: { orderId: string }) => {
+  const { orderId } = orderIdInput.parse(input);
+  const session = await requireAdmin();
+  const result = await bookOrderWithPostEx(orderId, session.sub);
+  revalidatePath('/admin/orders');
+  revalidatePath(`/admin/orders/${orderId}`);
+  return result;
+});
+
+const bulkBookBody = z.object({
+  orderIds: z.array(z.string().uuid()).min(1).max(50),
+});
+
+/**
+ * Book many orders with PostEx. Continues past individual failures so one bad
+ * address does not abort the rest of the batch.
+ */
+export const bulkBookWithPostEx = withAction(async (input: z.infer<typeof bulkBookBody>) => {
+  const session = await requireAdmin();
+  const { orderIds } = bulkBookBody.parse(input);
+
+  const booked: Array<{ orderId: string; trackingNumber: string }> = [];
+  const failed: Array<{ orderId: string; message: string }> = [];
+
+  for (const orderId of orderIds) {
+    try {
+      booked.push(await bookOrderWithPostEx(orderId, session.sub));
+    } catch (err) {
+      failed.push({
+        orderId,
+        message: err instanceof Error ? err.message : 'Booking failed',
+      });
+    }
+  }
 
   revalidatePath('/admin/orders');
-  revalidatePath(`/admin/orders/${order.id}`);
-  return { trackingNumber };
+  return {
+    booked: booked.length,
+    failed: failed.length,
+    trackingNumbers: booked.map((b) => b.trackingNumber),
+    errors: failed,
+  };
 });
 
 // ---------------------------------------------------------------------------
@@ -253,7 +298,8 @@ export const refreshPostExTracking = withAction(async (input: { trackingNumber: 
 
 /**
  * Cancel a PostEx booking (mis-booked parcel, address fix, etc.). Removes the
- * shipment row so the order can be re-booked, and reverts it to PROCESSING.
+ * shipment row so the order can be re-booked. Status stays PROCESSING (booking
+ * never marked the order SHIPPED).
  */
 export const cancelPostExBooking = withAction(async (input: { orderId: string }) => {
   const { orderId } = orderIdInput.parse(input);
@@ -268,6 +314,7 @@ export const cancelPostExBooking = withAction(async (input: { orderId: string })
 
   await cancelPostExOrder(shipment.trackingNumber);
   await prisma.shipment.delete({ where: { id: shipment.id } });
+  // Keep PROCESSING if already there; only write history when status changes.
   await transitionOrder(
     orderId,
     'PROCESSING',
@@ -279,6 +326,36 @@ export const cancelPostExBooking = withAction(async (input: { orderId: string })
   revalidatePath(`/admin/orders/${orderId}`);
   return { orderId };
 });
+
+const trackingLookupBody = z.object({
+  orderIds: z.array(z.string().uuid()).min(1).max(50),
+});
+
+/** Resolve PostEx tracking numbers for selected orders (for bulk label print). */
+export const getPostExTrackingForOrders = withAction(
+  async (input: z.infer<typeof trackingLookupBody>) => {
+    await requireAdmin();
+    const { orderIds } = trackingLookupBody.parse(input);
+    const shipments = await prisma.shipment.findMany({
+      where: {
+        orderId: { in: orderIds },
+        courierName: 'PostEx',
+        trackingNumber: { not: null },
+      },
+      select: { orderId: true, trackingNumber: true },
+      orderBy: { shippedAt: 'desc' },
+    });
+    const trackingNumbers = [
+      ...new Set(
+        shipments.map((s) => s.trackingNumber).filter((t): t is string => Boolean(t?.trim())),
+      ),
+    ];
+    return {
+      trackingNumbers,
+      missing: orderIds.length - new Set(shipments.map((s) => s.orderId)).size,
+    };
+  },
+);
 
 /**
  * Check whether PostEx has settled the COD cash for this order. When it has and

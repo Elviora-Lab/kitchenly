@@ -1,15 +1,10 @@
 /*
- * Print stylesheet for shipping labels.
- *
- * Page size: standard 4×6 inch thermal label (≈ 100mm × 150mm).
- * One <article class="label-page"> renders per page; a hard page-break
- * separates them so couriers can feed labels through a thermal printer
- * one at a time, or print on a sheet of A4/Letter labels.
+ * Print stylesheet for shipping labels — one label per A4 page.
  */
 
 @page {
-  size: 100mm 150mm;
-  margin: 0;
+  size: A4 portrait;
+  margin: 12mm;
 }
 
 @media screen {
@@ -18,9 +13,10 @@
   }
   .label-page {
     margin: 0 auto 16px;
-    width: 100mm;
-    min-height: 150mm;
-    padding: 6mm;
+    width: 210mm;
+    min-height: 297mm;
+    box-sizing: border-box;
+    padding: 14mm;
     background: white;
     color: black;
     border: 1px solid hsl(0 0% 80%);
@@ -38,8 +34,7 @@
   /*
    * The labels page lives inside the admin layout (sidebar + chrome). To strip
    * everything except the printable area, we hide all visibility globally and
-   * selectively re-show only `.labels-root` and its descendants. This works
-   * regardless of where in the DOM tree `.labels-root` sits.
+   * selectively re-show only `.labels-root` and its descendants.
    */
   body * {
     visibility: hidden;
@@ -57,9 +52,10 @@
     max-width: none !important;
   }
   .label-page {
-    width: 100mm;
-    min-height: 150mm;
-    padding: 6mm;
+    width: auto;
+    min-height: auto;
+    height: auto;
+    padding: 0;
     background: white !important;
     color: black !important;
     box-shadow: none !important;

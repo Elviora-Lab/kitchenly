@@ -76,7 +76,7 @@ export default async function PrintLabelsPage({ searchParams }: { searchParams: 
   return (
     <>
       <AutoPrint count={orders.length} />
-      <main className="labels-root mx-auto max-w-[110mm] py-6 print:max-w-none print:py-0">
+      <main className="labels-root mx-auto max-w-[210mm] py-6 print:max-w-none print:py-0">
         {orders.map((order) => (
           <ShippingLabel key={order.id} order={order} />
         ))}
