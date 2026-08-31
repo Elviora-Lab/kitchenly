@@ -1,3 +1,5 @@
+import { STORE_TIME_ZONE } from '@/utils/time';
+
 /**
  * Pakistani rupees are typically displayed without paisa (cents) in retail.
  * Other currencies retain 2 decimal places by default.
@@ -17,7 +19,8 @@ export function formatDate(
   opts: Intl.DateTimeFormatOptions = { dateStyle: 'medium' },
   locale = 'en-PK',
 ): string {
-  return new Intl.DateTimeFormat(locale, opts).format(new Date(value));
+  const { timeZone = STORE_TIME_ZONE, ...rest } = opts;
+  return new Intl.DateTimeFormat(locale, { timeZone, ...rest }).format(new Date(value));
 }
 
 export function formatNumber(value: number, locale = 'en-PK'): string {

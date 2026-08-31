@@ -83,6 +83,7 @@ export function CouponForm() {
       <Field label="Expires at (optional)">
         <Input name="expiresAt" type="datetime-local" />
       </Field>
+      <p className="text-xs text-muted-foreground sm:col-span-2">Times use Pakistan store time.</p>
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"

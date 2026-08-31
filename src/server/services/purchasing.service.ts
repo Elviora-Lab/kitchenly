@@ -13,12 +13,13 @@ import {
   statusAfterReceipt,
   unitLandedCost,
 } from '@/lib/purchasing';
+import { storeYear } from '@/utils/time';
 
 import { BadRequestError, ConflictError, NotFoundError } from '@/server/http/errors';
 import { inventoryService } from '@/server/services/inventory.service';
 
 const poNumberAlphabet = customAlphabet('0123456789ABCDEFGHJKMNPQRSTVWXYZ', 6);
-const newPoNumber = () => `PO-${new Date().getFullYear()}-${poNumberAlphabet()}`;
+const newPoNumber = () => `PO-${storeYear()}-${poNumberAlphabet()}`;
 
 /** Statuses that still accept a delivery. */
 const RECEIVABLE = new Set<Prisma.PurchaseOrderCreateInput['status']>([

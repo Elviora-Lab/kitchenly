@@ -4,6 +4,7 @@ import { type OrderStatus, Prisma, type UserRole } from '@prisma/client';
 
 import { productIntentScore, productIntentSignal, rate } from '@/lib/analytics/intent';
 import { prisma } from '@/lib/db';
+import { startOfStoreDay, startOfStoreWeek } from '@/utils/time';
 
 import { inventoryRepo } from '@/server/repositories/inventory.repo';
 import { inventoryService } from '@/server/services/inventory.service';
@@ -55,8 +56,8 @@ export const adminDashboardRepo = {
       lowStockVariants,
     ] = await Promise.all([
       sumRevenue(),
-      sumRevenue({ createdAt: { gte: startOfToday() } }),
-      sumRevenue({ createdAt: { gte: startOfWeek() } }),
+      sumRevenue({ createdAt: { gte: startOfStoreDay() } }),
+      sumRevenue({ createdAt: { gte: startOfStoreWeek() } }),
       prisma.order.count({
         where: { createdAt: { gte: daysAgo(30) } },
       }),
@@ -89,19 +90,6 @@ export const adminDashboardRepo = {
 
 function daysAgo(d: number) {
   return new Date(Date.now() - d * 24 * 60 * 60 * 1000);
-}
-
-// Local-time calendar boundaries (uses the server's timezone).
-function startOfToday() {
-  const n = new Date();
-  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
-}
-
-function startOfWeek() {
-  const t = startOfToday();
-  const mondayOffset = (t.getDay() + 6) % 7; // Mon=0 … Sun=6
-  t.setDate(t.getDate() - mondayOffset);
-  return t;
 }
 
 // ---------- Products ----------

@@ -6,6 +6,7 @@ import { customAlphabet } from 'nanoid';
 import { normalizeCurrencyCode } from '@/lib/currency';
 import { prisma } from '@/lib/db';
 import { computeCheckoutTotals } from '@/lib/shipping';
+import { storeYear } from '@/utils/time';
 
 import { events } from '@/server/events';
 import { BadRequestError, NotFoundError } from '@/server/http/errors';
@@ -17,7 +18,7 @@ import { inventoryService } from '@/server/services/inventory.service';
 import { promotionsService } from '@/server/services/promotions.service';
 
 const orderNumberAlphabet = customAlphabet('0123456789ABCDEFGHJKMNPQRSTVWXYZ', 8);
-const newOrderNumber = () => `ELV-${new Date().getFullYear()}-${orderNumberAlphabet()}`;
+const newOrderNumber = () => `ELV-${storeYear()}-${orderNumberAlphabet()}`;
 
 export const ordersService = {
   async listForUser(userId: string, page: number, pageSize: number) {

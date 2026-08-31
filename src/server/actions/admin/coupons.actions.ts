@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { DiscountType, Prisma } from '@prisma/client';
 import { z } from 'zod';
 
+import { parseStoreDateTimeInput } from '@/utils/time';
+
 import { withAction } from '../_with-action';
 
 import { requireAdmin } from '@/server/auth/guards';
@@ -19,7 +21,7 @@ const MAX_AMOUNT = 10_000_000;
 const dateInput = z
   .string()
   .optional()
-  .transform((s) => (s ? new Date(s) : undefined))
+  .transform((s) => (s ? parseStoreDateTimeInput(s) : undefined))
   .refine((d) => d === undefined || !Number.isNaN(d.getTime()), { message: 'Invalid date' });
 
 const createBody = z

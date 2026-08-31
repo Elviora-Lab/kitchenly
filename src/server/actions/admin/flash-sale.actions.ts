@@ -8,6 +8,7 @@ import {
   MAX_FLASH_SALE_ITEMS,
   MIN_FLASH_DISCOUNT_PERCENT,
 } from '@/lib/flash-sale';
+import { parseStoreDateTimeInput } from '@/utils/time';
 
 import { withAction } from '../_with-action';
 
@@ -21,7 +22,7 @@ import { idInput } from '@/server/validators/admin-common.schema';
 const dateInput = z
   .string()
   .min(1, 'Required')
-  .transform((s) => new Date(s))
+  .transform((s) => parseStoreDateTimeInput(s))
   .refine((d) => !Number.isNaN(d.getTime()), { message: 'Invalid date' });
 
 const windowBody = z

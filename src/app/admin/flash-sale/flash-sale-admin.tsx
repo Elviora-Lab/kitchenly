@@ -15,6 +15,7 @@ import {
   MIN_FLASH_DISCOUNT_PERCENT,
 } from '@/lib/flash-sale';
 import { formatDate, formatMoney } from '@/utils/format';
+import { formatStoreDateTimeLocalInput } from '@/utils/time';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -52,13 +53,6 @@ type Sale = {
 /** Applied to a product the moment it's picked; editable per row afterwards. */
 const DEFAULT_DISCOUNT_PERCENT = 20;
 
-/** ISO instant → the `YYYY-MM-DDTHH:mm` a datetime-local input expects, in local time. */
-function toLocalInput(iso: string): string {
-  const d = new Date(iso);
-  const offset = d.getTimezoneOffset() * 60_000;
-  return new Date(d.getTime() - offset).toISOString().slice(0, 16);
-}
-
 export function FlashSaleAdmin({ sales }: { sales: Sale[] }) {
   const [editingId, setEditingId] = useState<string | null>(sales[0]?.id ?? null);
   const editing = sales.find((s) => s.id === editingId) ?? null;
@@ -89,8 +83,8 @@ function SaleForm({ sale, onDone }: { sale: Sale | null; onDone: (id: string | n
   const [pending, start] = useTransition();
   const [form, setForm] = useState({
     title: sale?.title ?? 'Flash Sale',
-    startsAt: sale ? toLocalInput(sale.startsAt) : '',
-    endsAt: sale ? toLocalInput(sale.endsAt) : '',
+    startsAt: sale ? formatStoreDateTimeLocalInput(sale.startsAt) : '',
+    endsAt: sale ? formatStoreDateTimeLocalInput(sale.endsAt) : '',
     isActive: sale?.isActive ?? false,
   });
 
@@ -158,7 +152,7 @@ function SaleForm({ sale, onDone }: { sale: Sale | null; onDone: (id: string | n
               required
             />
             <p className="text-xs text-muted-foreground">
-              Times are in your local timezone. Discounts stop at the exact end instant.
+              Times use Pakistan store time. Discounts stop at the exact end instant.
             </p>
           </div>
 
