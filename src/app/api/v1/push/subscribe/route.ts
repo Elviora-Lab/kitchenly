@@ -51,9 +51,19 @@ export const POST = createHandler(async (req) => {
   });
 
   const userAgent = req.headers.get('user-agent')?.slice(0, 512) ?? null;
+  const existingToken = await prisma.webPushToken.findUnique({
+    where: { token: body.token },
+    select: { isActive: true, visitorId: true },
+  });
+  const isFreshSubscription =
+    !existingToken ||
+    !existingToken.isActive ||
+    existingToken.visitorId !== visitor.id ||
+    !visitor.pushSubscribedAt;
+  const subscribedAt = visitor.pushSubscribedAt ?? new Date();
 
-  await prisma.$transaction([
-    prisma.webPushToken.upsert({
+  await prisma.$transaction(async (tx) => {
+    await tx.webPushToken.upsert({
       where: { token: body.token },
       create: {
         visitorId: visitor.id,
@@ -73,29 +83,31 @@ export const POST = createHandler(async (req) => {
         revokedAt: null,
         lastSeenAt: new Date(),
       },
-    }),
-    prisma.marketingVisitor.update({
+    });
+    await tx.marketingVisitor.update({
       where: { id: visitor.id },
       data: {
         notificationPermission: body.permission,
-        pushSubscribedAt: visitor.pushSubscribedAt ?? new Date(),
-        intentScore: { increment: 20 },
+        pushSubscribedAt: subscribedAt,
+        ...(isFreshSubscription ? { intentScore: { increment: 20 } } : {}),
       },
-    }),
-    prisma.visitorEventLog.create({
-      data: {
-        visitorId: visitor.id,
-        guestId: visitor.guestId,
-        eventName: 'PushSubscribed',
-        cartId: visitor.cartId,
-        scoreDelta: 20,
-        pagePath: body.pagePath ?? null,
-        metadata: { platform: body.platform ?? null },
-      },
-    }),
-  ]);
+    });
+    if (isFreshSubscription) {
+      await tx.visitorEventLog.create({
+        data: {
+          visitorId: visitor.id,
+          guestId: visitor.guestId,
+          eventName: 'PushSubscribed',
+          cartId: visitor.cartId,
+          scoreDelta: 20,
+          pagePath: body.pagePath ?? null,
+          metadata: { platform: body.platform ?? null },
+        },
+      });
+    }
+  });
 
-  if (capiEnabled()) {
+  if (isFreshSubscription && capiEnabled()) {
     const [session, match] = await Promise.all([getSession(req), requestMatchData()]);
     await sendCapiEvent({
       eventName: 'PushSubscribed',

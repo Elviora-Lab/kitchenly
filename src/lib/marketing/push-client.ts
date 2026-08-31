@@ -8,6 +8,7 @@ import { publicEnv } from '@/config/env';
 import { getAnonymousVisitorId, visitorPayload } from './visitor-client';
 
 let foregroundListenerStarted = false;
+let grantedSyncPromise: Promise<boolean> | null = null;
 
 export function firebasePushConfigured(): boolean {
   return Boolean(
@@ -99,6 +100,35 @@ export async function startForegroundPushListener(): Promise<boolean> {
   });
 
   return true;
+}
+
+export async function syncGrantedPushSubscription(): Promise<boolean> {
+  if (grantedSyncPromise) return grantedSyncPromise;
+
+  grantedSyncPromise = (async () => {
+    if (!firebasePushConfigured()) return false;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
+
+    const messaging = await messagingClient();
+    if (!messaging) return false;
+
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    const token = await getToken(messaging, {
+      vapidKey: publicEnv.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+      serviceWorkerRegistration: registration,
+    });
+    if (!token) return false;
+
+    const subscribed = await postPushSubscription(token, Notification.permission);
+    if (!subscribed) return false;
+
+    void startForegroundPushListener();
+    return true;
+  })().finally(() => {
+    grantedSyncPromise = null;
+  });
+
+  return grantedSyncPromise;
 }
 
 export async function requestPushSubscription(): Promise<

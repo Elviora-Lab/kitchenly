@@ -9,6 +9,7 @@ import {
   firebasePushConfigured,
   requestPushSubscription,
   startForegroundPushListener,
+  syncGrantedPushSubscription,
 } from '@/lib/marketing/push-client';
 import {
   syncMarketingVisitor,
@@ -31,7 +32,9 @@ const DISMISSED_UNTIL_KEY = 'kly_push_dismissed_until';
 const PRODUCT_VIEWS_KEY = 'kly_session_product_views';
 const CART_INTENT_KEY = 'kly_cart_intent_tracked';
 const HIGH_INTENT_KEY = 'kly_high_intent_tracked';
+const SILENT_PUSH_SYNC_KEY = 'kly_push_synced_at';
 const DAY_MS = 24 * 60 * 60 * 1000;
+const SILENT_PUSH_SYNC_MS = 6 * 60 * 60 * 1000;
 
 function dismissedUntil(): number {
   try {
@@ -44,6 +47,23 @@ function dismissedUntil(): number {
 function dismissFor(days: number) {
   try {
     window.localStorage.setItem(DISMISSED_UNTIL_KEY, String(Date.now() + days * DAY_MS));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function recentlySyncedGrantedPush(): boolean {
+  try {
+    const syncedAt = Number(window.localStorage.getItem(SILENT_PUSH_SYNC_KEY) ?? 0);
+    return Date.now() - syncedAt < SILENT_PUSH_SYNC_MS;
+  } catch {
+    return false;
+  }
+}
+
+function markGrantedPushSynced() {
+  try {
+    window.localStorage.setItem(SILENT_PUSH_SYNC_KEY, String(Date.now()));
   } catch {
     /* storage unavailable */
   }
@@ -69,6 +89,7 @@ export function PushPermissionNudge() {
   const [pending, setPending] = useState(false);
   const [reason, setReason] = useState<'cart' | 'browse'>('cart');
   const promptTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const silentSyncAttempted = useRef(false);
 
   const eligiblePath = useMemo(
     () =>
@@ -90,7 +111,18 @@ export function PushPermissionNudge() {
   useEffect(() => {
     if (!eligiblePath || !firebasePushConfigured()) return;
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+
     void startForegroundPushListener();
+    if (silentSyncAttempted.current || recentlySyncedGrantedPush()) return;
+
+    silentSyncAttempted.current = true;
+    void syncGrantedPushSubscription().then((synced) => {
+      if (synced) {
+        markGrantedPushSynced();
+        return;
+      }
+      silentSyncAttempted.current = false;
+    });
   }, [eligiblePath]);
 
   useEffect(() => {
