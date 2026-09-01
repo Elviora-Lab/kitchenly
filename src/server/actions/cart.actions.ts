@@ -16,7 +16,7 @@ export const addToCart = withAction(async (input: { variantId: string; quantity?
   const session = await getSession();
   const sessionId = await getOrCreateGuestId();
   const cart = await cartService.addLine({ userId: session?.sub ?? null, sessionId }, body);
-  revalidateTag('cart');
+  revalidateTag('cart', 'max');
   return cart;
 });
 
@@ -28,7 +28,7 @@ export const updateCartLine = withAction(async (input: { lineId: string; quantit
     { userId: session?.sub ?? null, sessionId },
     { lineId: input.lineId, quantity: body.quantity },
   );
-  revalidateTag('cart');
+  revalidateTag('cart', 'max');
   return cart;
 });
 
@@ -50,7 +50,7 @@ export const applyCoupon = withAction(async (input: { code: string }) => {
   const cart = await cartService.getCart({ userId: session?.sub ?? null, sessionId });
   const { coupon, discount } = await couponsService.evaluate(body.code, cart.subtotal);
 
-  revalidateTag('cart');
+  revalidateTag('cart', 'max');
   return {
     applied: true,
     code: coupon.code,

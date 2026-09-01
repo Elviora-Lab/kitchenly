@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const sendMock = vi.hoisted(() => vi.fn());
 const resendCtorMock = vi.hoisted(() =>
-  vi.fn(() => ({
-    emails: {
-      send: sendMock,
-    },
-  })),
+  vi.fn(function ResendMock() {
+    return {
+      emails: {
+        send: sendMock,
+      },
+    };
+  }),
 );
 
 vi.mock('resend', () => ({

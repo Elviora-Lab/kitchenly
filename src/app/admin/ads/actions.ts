@@ -3,5 +3,5 @@
 import { revalidateTag } from 'next/cache';
 
 export async function refreshAdsPerformance() {
-  revalidateTag('meta-ads');
+  revalidateTag('meta-ads', 'max');
 }
