@@ -65,6 +65,8 @@ const serverEnvSchema = z.object({
   GOOGLE_CLIENT_SECRET: optionalStr,
   SENTRY_AUTH_TOKEN: optionalStr,
   RESEND_API_KEY: optionalStr,
+  EMAIL_FROM: optionalStr,
+  EMAIL_REPLY_TO: optionalStr,
   STRIPE_SECRET_KEY: optionalStr,
   STRIPE_WEBHOOK_SECRET: optionalStr,
   REDIS_URL: optionalStr,
@@ -204,6 +206,8 @@ export const serverEnv = (() => {
     DATABASE_URL: process.env.DATABASE_URL,
     DIRECT_URL: process.env.DIRECT_URL,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM,
+    EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     REDIS_URL: process.env.REDIS_URL,
@@ -252,6 +256,9 @@ export const serverEnv = (() => {
     }
     if (!parsed.data.DATABASE_URL) {
       problems.push('DATABASE_URL must be set');
+    }
+    if (!parsed.data.RESEND_API_KEY) {
+      problems.push('RESEND_API_KEY must be set so order-confirmation emails can be sent');
     }
     // Stripe is all-or-nothing: if any payment secret is set, require both.
     const hasStripe = parsed.data.STRIPE_SECRET_KEY || parsed.data.STRIPE_WEBHOOK_SECRET;

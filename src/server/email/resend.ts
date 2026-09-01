@@ -15,7 +15,7 @@ function client(): Resend | null {
   return cached;
 }
 
-const DEFAULT_FROM = `${siteConfig.name} <support@kitchenly.com.pk>`;
+const DEFAULT_FROM = `${siteConfig.name} <${siteConfig.contact.email}>`;
 
 export type SendEmailInput = {
   to: string | string[];
@@ -41,12 +41,12 @@ export async function sendEmail(input: SendEmailInput): Promise<{ id: string | n
     return { id: null };
   }
   const result = await resend.emails.send({
-    from: input.from ?? DEFAULT_FROM,
+    from: input.from ?? serverEnv.EMAIL_FROM ?? DEFAULT_FROM,
     to: input.to,
     subject: input.subject,
     html: input.html,
     text: input.text,
-    replyTo: input.replyTo,
+    replyTo: input.replyTo ?? serverEnv.EMAIL_REPLY_TO,
   });
   return { id: result.data?.id ?? null };
 }
