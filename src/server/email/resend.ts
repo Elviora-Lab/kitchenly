@@ -37,6 +37,9 @@ export async function sendEmail(input: SendEmailInput): Promise<{ id: string | n
     if (isDev) {
       // eslint-disable-next-line no-console
       console.log('[email:dev]', input.subject, '→', input.to);
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn('[email] RESEND_API_KEY is not configured; email was not sent');
     }
     return { id: null };
   }
