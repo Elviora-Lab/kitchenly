@@ -1,0 +1,38 @@
+# Hourly PostEx tracking sync — marks orders SHIPPED on rider pickup and
+# reconciles delivery/return statuses.
+#
+# Vercel Hobby only allows once-per-day crons, so this schedule lives in GitHub
+# Actions instead of vercel.json. Requires repo secret:
+#   CRON_SECRET — same value as Vercel Production CRON_SECRET
+#
+name: PostEx status sync
+
+on:
+  schedule:
+    # Every hour at :15 UTC (offset from abandoned-cart push at :00)
+    - cron: '15 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: postex-sync
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call production cron endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRON_URL: https://kitchenly.com.pk/api/v1/cron/postex-sync
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET repo secret is not set"
+            exit 1
+          fi
+          curl -fsS --retry 2 --retry-all-errors \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "User-Agent: github-actions-postex-sync" \
+            "$CRON_URL"
+          echo

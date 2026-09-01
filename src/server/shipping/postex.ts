@@ -518,8 +518,8 @@ export async function getPostExPaymentStatus(trackingNumber: string): Promise<Po
 
 /**
  * Translate a PostEx status message (from track-order or its history) into our
- * ShipmentStatus, plus the OrderStatus it implies when the step is terminal
- * (Delivered/Returned). Intermediate steps leave the order untouched.
+ * ShipmentStatus and the OrderStatus it implies. Terminal steps (Delivered,
+ * Returned) end the journey; pickup/in-transit steps mark the order SHIPPED.
  */
 export function mapPostExStatus(raw: string): {
   shipment: ShipmentStatus;
@@ -527,16 +527,43 @@ export function mapPostExStatus(raw: string): {
   terminal: boolean;
 } {
   const s = raw.toLowerCase();
-  if (s.includes('out for delivery'))
-    return { shipment: ShipmentStatus.OUT_FOR_DELIVERY, terminal: false };
-  if (s.includes('under review') || s.includes('attempt'))
-    return { shipment: ShipmentStatus.IN_TRANSIT, terminal: false };
-  if (s.includes('deliver'))
-    return { shipment: ShipmentStatus.DELIVERED, order: OrderStatus.DELIVERED, terminal: true };
-  if (s.includes('return'))
-    return { shipment: ShipmentStatus.RETURNED, order: OrderStatus.RETURNED, terminal: true };
+
+  // Still at the merchant — label printed, rider has not collected yet.
+  if (s.includes('unbooked') || s.includes('at merchant'))
+    return { shipment: ShipmentStatus.LABEL_CREATED, terminal: false };
+  if (/\bbooked\b/.test(s)) return { shipment: ShipmentStatus.LABEL_CREATED, terminal: false };
+
   if (s.includes('expired') || s.includes('un-assigned'))
     return { shipment: ShipmentStatus.FAILED, terminal: true };
-  // Booked / warehouse / picked / en-route / on root → in transit.
+
+  if (s.includes('return'))
+    return { shipment: ShipmentStatus.RETURNED, order: OrderStatus.RETURNED, terminal: true };
+
+  if (s.includes('out for delivery'))
+    return {
+      shipment: ShipmentStatus.OUT_FOR_DELIVERY,
+      order: OrderStatus.SHIPPED,
+      terminal: false,
+    };
+
+  if (s.includes('deliver'))
+    return { shipment: ShipmentStatus.DELIVERED, order: OrderStatus.DELIVERED, terminal: true };
+
+  const pickedUp = {
+    shipment: ShipmentStatus.IN_TRANSIT,
+    order: OrderStatus.SHIPPED,
+    terminal: false,
+  } as const;
+
+  if (
+    s.includes('picked') ||
+    s.includes('postex warehouse') ||
+    s.includes('on root') ||
+    s.includes('en-route to postex') ||
+    s.includes('en route to postex')
+  )
+    return pickedUp;
+  if (s.includes('under review') || s.includes('attempt')) return pickedUp;
+
   return { shipment: ShipmentStatus.IN_TRANSIT, terminal: false };
 }

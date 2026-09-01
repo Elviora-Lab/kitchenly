@@ -14,19 +14,23 @@ const TERMINAL: ShipmentStatus[] = [
   ShipmentStatus.FAILED,
 ];
 
+/** Order statuses that may advance to SHIPPED when PostEx confirms pickup. */
+const AWAITING_PICKUP: OrderStatus[] = [OrderStatus.CONFIRMED, OrderStatus.PROCESSING];
+
 export type PostExSyncResult = {
   checked: number;
   updated: number;
+  shipped: number;
   delivered: number;
   returned: number;
 };
 
 /**
  * Poll PostEx for every open consignment and reconcile our records: update the
- * shipment status, and when a parcel reaches a terminal step, transition the
- * order (Delivered → notify the customer; Returned → restock). Idempotent — a
- * status that hasn't moved writes nothing, and `transitionOrder` no-ops on an
- * unchanged status, so re-running never double-fires an email or a restock.
+ * shipment status, mark orders SHIPPED once PostEx confirms pickup, and when a
+ * parcel reaches a terminal step transition the order (Delivered → notify the
+ * customer; Returned → restock). Idempotent — a status that hasn't moved writes
+ * nothing, and `transitionOrder` no-ops on an unchanged status.
  */
 export async function syncPostExShipments(): Promise<PostExSyncResult> {
   const shipments = await prisma.shipment.findMany({
@@ -35,11 +39,24 @@ export async function syncPostExShipments(): Promise<PostExSyncResult> {
       trackingNumber: { not: null },
       shipmentStatus: { notIn: TERMINAL },
     },
-    select: { id: true, trackingNumber: true, shipmentStatus: true, orderId: true },
+    select: {
+      id: true,
+      trackingNumber: true,
+      shipmentStatus: true,
+      shippedAt: true,
+      orderId: true,
+      order: { select: { orderStatus: true } },
+    },
     take: 200,
   });
 
-  const result: PostExSyncResult = { checked: 0, updated: 0, delivered: 0, returned: 0 };
+  const result: PostExSyncResult = {
+    checked: 0,
+    updated: 0,
+    shipped: 0,
+    delivered: 0,
+    returned: 0,
+  };
 
   for (const s of shipments) {
     if (!s.trackingNumber) continue;
@@ -47,16 +64,30 @@ export async function syncPostExShipments(): Promise<PostExSyncResult> {
     try {
       const { status } = await trackPostExOrder(s.trackingNumber);
       const mapped = mapPostExStatus(status);
+      const impliesShipped = mapped.order === OrderStatus.SHIPPED && !mapped.terminal;
 
-      if (mapped.shipment !== s.shipmentStatus) {
-        await prisma.shipment.update({
-          where: { id: s.id },
-          data: {
-            shipmentStatus: mapped.shipment,
-            ...(mapped.shipment === ShipmentStatus.DELIVERED ? { deliveredAt: new Date() } : {}),
-          },
-        });
+      const shipmentPatch: {
+        shipmentStatus?: ShipmentStatus;
+        shippedAt?: Date;
+        deliveredAt?: Date;
+      } = {};
+
+      if (mapped.shipment !== s.shipmentStatus) shipmentPatch.shipmentStatus = mapped.shipment;
+      if (mapped.shipment === ShipmentStatus.DELIVERED) shipmentPatch.deliveredAt = new Date();
+      if (impliesShipped && !s.shippedAt) shipmentPatch.shippedAt = new Date();
+
+      if (Object.keys(shipmentPatch).length > 0) {
+        await prisma.shipment.update({ where: { id: s.id }, data: shipmentPatch });
         result.updated += 1;
+      }
+
+      if (impliesShipped && AWAITING_PICKUP.includes(s.order.orderStatus)) {
+        const { changed } = await transitionOrder(
+          s.orderId,
+          OrderStatus.SHIPPED,
+          `PostEx: ${status}`,
+        );
+        if (changed) result.shipped += 1;
       }
 
       if (mapped.terminal && mapped.order) {
