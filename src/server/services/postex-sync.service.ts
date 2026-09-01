@@ -5,7 +5,12 @@ import { OrderStatus, ShipmentStatus } from '@prisma/client';
 import { prisma } from '@/lib/db';
 
 import { transitionOrder } from '@/server/services/order-transitions.service';
-import { mapPostExStatus, trackPostExOrder } from '@/server/shipping/postex';
+import {
+  getPostExTrackingDetail,
+  hasPostExPickupInTracking,
+  mapPostExStatus,
+  resolvePostExCurrentStatus,
+} from '@/server/shipping/postex';
 
 /** Shipment states we no longer poll — the parcel's journey is over. */
 const TERMINAL: ShipmentStatus[] = [
@@ -55,10 +60,6 @@ type ReconcileResult = {
   error: boolean;
 };
 
-function impliesOrderShipped(mapped: ReturnType<typeof mapPostExStatus> | null): boolean {
-  return mapped?.order === OrderStatus.SHIPPED && !mapped.terminal;
-}
-
 async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult> {
   const outcome: ReconcileResult = {
     status: 'Unknown',
@@ -73,10 +74,12 @@ async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult>
 
   let statusRaw = 'Unknown';
   let mapped: ReturnType<typeof mapPostExStatus> | null = null;
+  let pickedUp = false;
 
   try {
-    const tracked = await trackPostExOrder(s.trackingNumber);
-    statusRaw = tracked.status;
+    const dist = await getPostExTrackingDetail(s.trackingNumber);
+    statusRaw = resolvePostExCurrentStatus(dist);
+    pickedUp = hasPostExPickupInTracking(dist);
     mapped = mapPostExStatus(statusRaw);
     outcome.status = statusRaw;
   } catch {
@@ -84,7 +87,7 @@ async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult>
     return outcome;
   }
 
-  const markShipped = impliesOrderShipped(mapped);
+  const markShipped = pickedUp;
 
   const shipmentPatch: {
     shipmentStatus?: ShipmentStatus;
@@ -107,7 +110,7 @@ async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult>
     const { changed } = await transitionOrder(
       s.orderId,
       OrderStatus.SHIPPED,
-      `PostEx: ${statusRaw}`,
+      pickedUp ? 'PostEx: Picked By PostEx' : `PostEx: ${statusRaw}`,
     );
     outcome.shipped = changed;
   }

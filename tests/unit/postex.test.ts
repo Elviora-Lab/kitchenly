@@ -2,6 +2,7 @@ import { OrderStatus, ShipmentStatus } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
 import {
+  hasPostExPickupInTracking,
   isPostExPickedUpStatus,
   mapPostExStatus,
   resolvePostExCurrentStatus,
@@ -62,6 +63,26 @@ describe('PostEx status mapping', () => {
       shipment: ShipmentStatus.IN_TRANSIT,
       terminal: false,
     });
+    expect(mapPostExStatus('In-Transit')).toEqual({
+      shipment: ShipmentStatus.IN_TRANSIT,
+      terminal: false,
+    });
+  });
+
+  it('detects pickup from journey history when current status has moved on', () => {
+    expect(
+      hasPostExPickupInTracking({
+        transactionStatus: 'In-Transit',
+        transactionStatusHistory: [
+          {
+            transactionStatusMessage: "At Merchant's Warehouse",
+            transactionStatusMessageCode: '0001',
+          },
+          { transactionStatusMessage: 'Picked By PostEx', transactionStatusMessageCode: '0015' },
+          { transactionStatusMessage: 'At PostEx Warehouse', transactionStatusMessageCode: '0003' },
+        ],
+      }),
+    ).toBe(true);
     expect(mapPostExStatus('In-Transit')).toEqual({
       shipment: ShipmentStatus.IN_TRANSIT,
       terminal: false,

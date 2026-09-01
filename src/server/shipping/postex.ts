@@ -327,9 +327,14 @@ export function resolvePostExCurrentStatus(dist: PostExTrackingDetail): string {
 }
 
 /** Fetch the latest tracking status for a consignment. Best-effort message. */
-export async function trackPostExOrder(trackingNumber: string): Promise<{ status: string }> {
+export async function trackPostExOrder(
+  trackingNumber: string,
+): Promise<{ status: string; pickedUp: boolean }> {
   const dist = await getPostExTrackingDetail(trackingNumber);
-  return { status: resolvePostExCurrentStatus(dist) };
+  return {
+    status: resolvePostExCurrentStatus(dist),
+    pickedUp: hasPostExPickupInTracking(dist),
+  };
 }
 
 /** Track multiple PostEx consignments in one call. */
@@ -536,6 +541,13 @@ export async function getPostExPaymentStatus(trackingNumber: string): Promise<Po
  */
 export function isPostExPickedUpStatus(raw: string): boolean {
   return raw.toLowerCase().includes('picked by postex');
+}
+
+/** True when the rider pickup step appears in the current status or journey history. */
+export function hasPostExPickupInTracking(dist: PostExTrackingDetail): boolean {
+  if (isPostExPickedUpStatus(dist.transactionStatus ?? '')) return true;
+  const history = Array.isArray(dist.transactionStatusHistory) ? dist.transactionStatusHistory : [];
+  return history.some((row) => isPostExPickedUpStatus(row.transactionStatusMessage ?? ''));
 }
 
 /**
