@@ -14,9 +14,6 @@ const TERMINAL: ShipmentStatus[] = [
   ShipmentStatus.FAILED,
 ];
 
-/** Parcel has left the merchant — order should be SHIPPED. */
-const IN_FLIGHT: ShipmentStatus[] = [ShipmentStatus.IN_TRANSIT, ShipmentStatus.OUT_FOR_DELIVERY];
-
 /** Order statuses that may advance to SHIPPED when PostEx confirms pickup. */
 const AWAITING_PICKUP: OrderStatus[] = [OrderStatus.CONFIRMED, OrderStatus.PROCESSING];
 
@@ -58,14 +55,8 @@ type ReconcileResult = {
   error: boolean;
 };
 
-function isPastMerchantPickup(
-  mapped: ReturnType<typeof mapPostExStatus>,
-  currentShipmentStatus: ShipmentStatus,
-): boolean {
-  if (mapped.order === OrderStatus.SHIPPED && !mapped.terminal) return true;
-  if (IN_FLIGHT.includes(mapped.shipment)) return true;
-  if (IN_FLIGHT.includes(currentShipmentStatus)) return true;
-  return false;
+function impliesOrderShipped(mapped: ReturnType<typeof mapPostExStatus> | null): boolean {
+  return mapped?.order === OrderStatus.SHIPPED && !mapped.terminal;
 }
 
 async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult> {
@@ -90,13 +81,10 @@ async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult>
     outcome.status = statusRaw;
   } catch {
     outcome.error = true;
+    return outcome;
   }
 
-  const effective = mapped ?? {
-    shipment: s.shipmentStatus,
-    terminal: false as const,
-  };
-  const pastPickup = isPastMerchantPickup(effective, s.shipmentStatus);
+  const markShipped = impliesOrderShipped(mapped);
 
   const shipmentPatch: {
     shipmentStatus?: ShipmentStatus;
@@ -108,16 +96,19 @@ async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult>
     shipmentPatch.shipmentStatus = mapped.shipment;
   }
   if (mapped?.shipment === ShipmentStatus.DELIVERED) shipmentPatch.deliveredAt = new Date();
-  if (pastPickup && !s.shippedAt) shipmentPatch.shippedAt = new Date();
+  if (markShipped && !s.shippedAt) shipmentPatch.shippedAt = new Date();
 
   if (Object.keys(shipmentPatch).length > 0) {
     await prisma.shipment.update({ where: { id: s.id }, data: shipmentPatch });
     outcome.updated = true;
   }
 
-  if (pastPickup && AWAITING_PICKUP.includes(s.order.orderStatus)) {
-    const note = mapped ? `PostEx: ${statusRaw}` : 'PostEx: in transit (shipment reconciled)';
-    const { changed } = await transitionOrder(s.orderId, OrderStatus.SHIPPED, note);
+  if (markShipped && AWAITING_PICKUP.includes(s.order.orderStatus)) {
+    const { changed } = await transitionOrder(
+      s.orderId,
+      OrderStatus.SHIPPED,
+      `PostEx: ${statusRaw}`,
+    );
     outcome.shipped = changed;
   }
 
@@ -132,7 +123,7 @@ async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult>
 
 /**
  * Poll PostEx for every open consignment and reconcile our records: update the
- * shipment status, mark orders SHIPPED once PostEx confirms pickup, and when a
+ * shipment status, mark orders SHIPPED only when PostEx reports "Picked By PostEx",
  * parcel reaches a terminal step transition the order (Delivered → notify the
  * customer; Returned → restock). Idempotent — a status that hasn't moved writes
  * nothing, and `transitionOrder` no-ops on an unchanged status.

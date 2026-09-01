@@ -531,9 +531,17 @@ export async function getPostExPaymentStatus(trackingNumber: string): Promise<Po
 // ---------------------------------------------------------------------------
 
 /**
+ * True when PostEx confirms the rider has collected the parcel from the merchant.
+ * Order → SHIPPED only on this step; other in-transit statuses update the shipment row only.
+ */
+export function isPostExPickedUpStatus(raw: string): boolean {
+  return raw.toLowerCase().includes('picked by postex');
+}
+
+/**
  * Translate a PostEx status message (from track-order or its history) into our
  * ShipmentStatus and the OrderStatus it implies. Terminal steps (Delivered,
- * Returned) end the journey; pickup/in-transit steps mark the order SHIPPED.
+ * Returned) end the journey; only "Picked By PostEx" marks the order SHIPPED.
  */
 export function mapPostExStatus(raw: string): {
   shipment: ShipmentStatus;
@@ -554,32 +562,29 @@ export function mapPostExStatus(raw: string): {
     return { shipment: ShipmentStatus.RETURNED, order: OrderStatus.RETURNED, terminal: true };
 
   if (s.includes('out for delivery'))
-    return {
-      shipment: ShipmentStatus.OUT_FOR_DELIVERY,
-      order: OrderStatus.SHIPPED,
-      terminal: false,
-    };
+    return { shipment: ShipmentStatus.OUT_FOR_DELIVERY, terminal: false };
 
   if (s.includes('deliver'))
     return { shipment: ShipmentStatus.DELIVERED, order: OrderStatus.DELIVERED, terminal: true };
 
-  const pickedUp = {
-    shipment: ShipmentStatus.IN_TRANSIT,
-    order: OrderStatus.SHIPPED,
-    terminal: false,
-  } as const;
+  if (isPostExPickedUpStatus(raw))
+    return {
+      shipment: ShipmentStatus.IN_TRANSIT,
+      order: OrderStatus.SHIPPED,
+      terminal: false,
+    };
 
   if (
-    s.includes('picked') ||
     s.includes('postex warehouse') ||
     s.includes('on root') ||
     s.includes('en-route to postex') ||
     s.includes('en route to postex') ||
     s.includes('in-transit') ||
-    s.includes('in transit')
+    s.includes('in transit') ||
+    s.includes('under review') ||
+    s.includes('attempt')
   )
-    return pickedUp;
-  if (s.includes('under review') || s.includes('attempt')) return pickedUp;
+    return { shipment: ShipmentStatus.IN_TRANSIT, terminal: false };
 
   return { shipment: ShipmentStatus.IN_TRANSIT, terminal: false };
 }

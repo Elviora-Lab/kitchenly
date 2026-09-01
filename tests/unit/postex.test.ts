@@ -2,6 +2,7 @@ import { OrderStatus, ShipmentStatus } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
 import {
+  isPostExPickedUpStatus,
   mapPostExStatus,
   resolvePostExCurrentStatus,
   toPostExPhone,
@@ -35,35 +36,34 @@ describe('PostEx status mapping', () => {
     });
   });
 
-  it('maps rider pickup and in-transit statuses to shipped', () => {
+  it('marks the order shipped only on Picked By PostEx', () => {
+    expect(isPostExPickedUpStatus('Picked By PostEx')).toBe(true);
     expect(mapPostExStatus('Picked By PostEx')).toEqual({
       shipment: ShipmentStatus.IN_TRANSIT,
       order: OrderStatus.SHIPPED,
       terminal: false,
     });
+  });
+
+  it('updates shipment for in-transit steps without marking the order shipped', () => {
     expect(mapPostExStatus('At PostEx Warehouse')).toEqual({
       shipment: ShipmentStatus.IN_TRANSIT,
-      order: OrderStatus.SHIPPED,
       terminal: false,
     });
     expect(mapPostExStatus('Package on Root')).toEqual({
       shipment: ShipmentStatus.IN_TRANSIT,
-      order: OrderStatus.SHIPPED,
       terminal: false,
     });
     expect(mapPostExStatus('Out For Delivery')).toEqual({
       shipment: ShipmentStatus.OUT_FOR_DELIVERY,
-      order: OrderStatus.SHIPPED,
       terminal: false,
     });
     expect(mapPostExStatus('Attempt Made: Customer not available')).toEqual({
       shipment: ShipmentStatus.IN_TRANSIT,
-      order: OrderStatus.SHIPPED,
       terminal: false,
     });
     expect(mapPostExStatus('In-Transit')).toEqual({
       shipment: ShipmentStatus.IN_TRANSIT,
-      order: OrderStatus.SHIPPED,
       terminal: false,
     });
   });
