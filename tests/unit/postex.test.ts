@@ -1,7 +1,11 @@
 import { OrderStatus, ShipmentStatus } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
-import { mapPostExStatus, toPostExPhone } from '@/server/shipping/postex';
+import {
+  mapPostExStatus,
+  resolvePostExCurrentStatus,
+  toPostExPhone,
+} from '@/server/shipping/postex';
 
 describe('PostEx phone normalization', () => {
   it('normalizes Pakistan mobile formats to local 03xxxxxxxxx form', () => {
@@ -57,6 +61,40 @@ describe('PostEx status mapping', () => {
       order: OrderStatus.SHIPPED,
       terminal: false,
     });
+    expect(mapPostExStatus('In-Transit')).toEqual({
+      shipment: ShipmentStatus.IN_TRANSIT,
+      order: OrderStatus.SHIPPED,
+      terminal: false,
+    });
+  });
+
+  it('prefers transactionStatus over history when resolving current step', () => {
+    expect(
+      resolvePostExCurrentStatus({
+        transactionStatus: 'Picked By PostEx',
+        transactionStatusHistory: [
+          {
+            transactionStatusMessage: "At Merchant's Warehouse",
+            transactionStatusMessageCode: '0001',
+          },
+          { transactionStatusMessage: 'Picked By PostEx', transactionStatusMessageCode: '0015' },
+        ],
+      }),
+    ).toBe('Picked By PostEx');
+  });
+
+  it('picks the highest status code from history when summary is absent', () => {
+    expect(
+      resolvePostExCurrentStatus({
+        transactionStatusHistory: [
+          {
+            transactionStatusMessage: "At Merchant's Warehouse",
+            transactionStatusMessageCode: '0001',
+          },
+          { transactionStatusMessage: 'At PostEx Warehouse', transactionStatusMessageCode: '0003' },
+        ],
+      }),
+    ).toBe('At PostEx Warehouse');
   });
 
   it('maps delivered and returned statuses to terminal order states', () => {

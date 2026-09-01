@@ -304,18 +304,32 @@ export async function getPostExTrackingDetail(
 }
 
 /** Fetch the latest tracking status for a consignment. Best-effort message. */
+export function resolvePostExCurrentStatus(dist: PostExTrackingDetail): string {
+  // PostEx sets `transactionStatus` to the parcel's current step in the portal.
+  const summary = dist.transactionStatus;
+  if (typeof summary === 'string' && summary.trim()) return summary.trim();
+
+  const history = Array.isArray(dist.transactionStatusHistory) ? dist.transactionStatusHistory : [];
+  if (history.length === 0) return 'Unknown';
+
+  // History rows carry numeric codes — pick the highest as the latest event.
+  const coded = history.filter((row) => row.transactionStatusMessageCode);
+  if (coded.length > 0) {
+    const latest = coded.reduce((best, row) => {
+      const code = Number.parseInt(String(row.transactionStatusMessageCode), 10);
+      const bestCode = Number.parseInt(String(best.transactionStatusMessageCode), 10);
+      return code > bestCode ? row : best;
+    });
+    if (latest.transactionStatusMessage) return latest.transactionStatusMessage;
+  }
+
+  return String(history[history.length - 1]?.transactionStatusMessage ?? 'Unknown');
+}
+
+/** Fetch the latest tracking status for a consignment. Best-effort message. */
 export async function trackPostExOrder(trackingNumber: string): Promise<{ status: string }> {
   const dist = await getPostExTrackingDetail(trackingNumber);
-  // Per the guide (3.8.3), the human-readable journey lives in
-  // `transactionStatusHistory[]` (each entry has `transactionStatusMessage`);
-  // the latest entry is the current step. `transactionStatus` is an optional
-  // summary string we fall back to when the history is absent.
-  const history = Array.isArray(dist['transactionStatusHistory'])
-    ? (dist['transactionStatusHistory'] as Array<{ transactionStatusMessage?: string }>)
-    : [];
-  const latest = history.length ? history[history.length - 1]?.transactionStatusMessage : undefined;
-  const status = latest || (dist['transactionStatus'] as string) || 'Unknown';
-  return { status: String(status) };
+  return { status: resolvePostExCurrentStatus(dist) };
 }
 
 /** Track multiple PostEx consignments in one call. */
@@ -560,7 +574,9 @@ export function mapPostExStatus(raw: string): {
     s.includes('postex warehouse') ||
     s.includes('on root') ||
     s.includes('en-route to postex') ||
-    s.includes('en route to postex')
+    s.includes('en route to postex') ||
+    s.includes('in-transit') ||
+    s.includes('in transit')
   )
     return pickedUp;
   if (s.includes('under review') || s.includes('attempt')) return pickedUp;

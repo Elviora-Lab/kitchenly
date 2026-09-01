@@ -11,11 +11,11 @@ import { withAction } from '../_with-action';
 import { requireAdmin } from '@/server/auth/guards';
 import { BadRequestError, NotFoundError } from '@/server/http/errors';
 import { transitionOrder } from '@/server/services/order-transitions.service';
+import { syncPostExOrder } from '@/server/services/postex-sync.service';
 import {
   cancelPostExOrder,
   createPostExOrder,
   getPostExPaymentStatus,
-  trackPostExOrder,
 } from '@/server/shipping/postex';
 
 const statusValues = Object.values(OrderStatus) as [OrderStatus, ...OrderStatus[]];
@@ -286,14 +286,14 @@ export const markPaymentReceived = withAction(async (input: { orderId: string })
   return { orderId };
 });
 
-/** Pull the latest PostEx status for a tracking number (best-effort). */
-export const refreshPostExTracking = withAction(async (input: { trackingNumber: string }) => {
-  const { trackingNumber } = z
-    .object({ trackingNumber: z.string().trim().min(1).max(64) })
-    .parse(input);
+/** Pull PostEx tracking and reconcile shipment + order status for one order. */
+export const refreshPostExTracking = withAction(async (input: { orderId: string }) => {
+  const { orderId } = orderIdInput.parse(input);
   await requireAdmin();
-  const { status } = await trackPostExOrder(trackingNumber);
-  return { status };
+  const result = await syncPostExOrder(orderId);
+  revalidatePath('/admin/orders');
+  revalidatePath(`/admin/orders/${orderId}`);
+  return result;
 });
 
 /**

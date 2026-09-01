@@ -47,13 +47,16 @@ export function CourierCard({
   }
 
   function refresh() {
-    const tn = shipment?.trackingNumber;
-    if (!tn) return;
     start(async () => {
-      const res = await refreshPostExTracking({ trackingNumber: tn });
+      const res = await refreshPostExTracking({ orderId });
       if (res.success) {
         setStatus(res.data.status);
-        toast.success(res.data.status);
+        if (res.data.shipped) {
+          toast.success(`Shipped — ${res.data.status}`);
+        } else {
+          toast.success(res.data.status);
+        }
+        router.refresh();
       } else {
         toast.error(res.message);
       }
