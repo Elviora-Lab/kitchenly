@@ -16,6 +16,7 @@ import { CHEAPEST_ZONE, computeCheckoutTotals } from '@/lib/shipping';
 import { EmptyState } from '@/design-system/primitives/empty-state';
 import { Price } from '@/design-system/primitives/price';
 import { FlashSaleNotice } from '@/components/commerce/flash-sale-notice';
+import { PostExCityCombobox } from '@/components/commerce/postex-city-combobox';
 import { TrustBar } from '@/components/commerce/trust-bar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,7 +63,15 @@ type CartProp = {
 
 type PaymentMethod = 'COD' | 'CARD';
 
-export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart: CartProp }) {
+export function CheckoutClient({
+  addresses,
+  cart,
+  deliveryCities,
+}: {
+  addresses: Address[];
+  cart: CartProp;
+  deliveryCities: string[];
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const { clear: clearLocalCart, cart: clientCart } = useCart();
@@ -124,6 +133,12 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
       setCityServiceable(null);
       return;
     }
+    if (deliveryCities.length > 0) {
+      setCityServiceable(
+        deliveryCities.some((c) => c.toLowerCase() === city.toLowerCase()) ? true : false,
+      );
+      return;
+    }
     const timer = setTimeout(() => {
       fetch(`/api/v1/shipping/city-check?city=${encodeURIComponent(city)}`)
         .then((r) => r.json())
@@ -131,7 +146,7 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
         .catch(() => setCityServiceable(null));
     }, 500);
     return () => clearTimeout(timer);
-  }, [destinationCity]);
+  }, [destinationCity, deliveryCities]);
 
   // Analytics: fire begin-checkout + default payment method once when checkout
   // loads (Meta InitiateCheckout / AddPaymentInfo + GA4 begin_checkout).
@@ -201,6 +216,13 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
       }
       if (!newAddress.phone) {
         toast.error('Please provide a phone number so we can reach you about delivery');
+        return;
+      }
+      if (
+        deliveryCities.length > 0 &&
+        !deliveryCities.some((c) => c.toLowerCase() === newAddress.city.trim().toLowerCase())
+      ) {
+        toast.error('Please select your delivery city from the list');
         return;
       }
     }
@@ -303,9 +325,10 @@ export function CheckoutClient({ addresses, cart }: { addresses: Address[]; cart
                   />
                 </Field>
                 <Field label="City *">
-                  <Input
+                  <PostExCityCombobox
+                    cities={deliveryCities}
                     value={newAddress.city}
-                    onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                    onChange={(city) => setNewAddress({ ...newAddress, city })}
                   />
                 </Field>
                 <Field label="Postal code">

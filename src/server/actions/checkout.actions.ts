@@ -24,6 +24,7 @@ import { clientIpFromAction, enforceRateLimit } from '@/server/http/rate-limit';
 import { createPaymentIntent } from '@/server/payments/stripe';
 import { addressesService } from '@/server/services/addresses.service';
 import { ordersService } from '@/server/services/orders.service';
+import { isPostExDeliveryCity } from '@/server/shipping/postex';
 import { addressBody } from '@/server/validators/addresses.schema';
 
 const placeOrderInput = z.object({
@@ -95,6 +96,9 @@ export const placeOrder = withAction(async (raw: unknown) => {
     shippingAddress = await addressesService.getOwned(input.addressId, session.sub);
   } else if (input.address) {
     if (!input.address.phone) throw new BadRequestError('A phone number is required');
+    if (!(await isPostExDeliveryCity(input.address.city))) {
+      throw new BadRequestError('Please select a valid PostEx delivery city');
+    }
     // Persist to the account when logged in; guests just use the payload.
     shippingAddress = session
       ? await addressesService.create(session.sub, input.address)

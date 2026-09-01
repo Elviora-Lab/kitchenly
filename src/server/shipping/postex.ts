@@ -362,6 +362,37 @@ export async function bulkTrackPostExOrders(
 
 const normalizeCityName = (s: string): string => s.trim().toLowerCase().replace(/\s+/g, ' ');
 
+async function loadPostExDeliveryCityNames(): Promise<string[]> {
+  if (!isPostExConfigured()) return [];
+  const rows = await getPostExOperationalCities();
+  return rows
+    .filter((r) => r.isDeliveryCity)
+    .map((r) => r.operationalCityName.trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'en'));
+}
+
+/** PostEx delivery cities with official spelling — for checkout city picker. */
+export const getPostExDeliveryCities = unstable_cache(
+  async (): Promise<string[]> => {
+    try {
+      return await loadPostExDeliveryCityNames();
+    } catch {
+      return [];
+    }
+  },
+  ['postex-delivery-cities-v1'],
+  { revalidate: 60 * 60 * 24, tags: ['postex-cities'] },
+);
+
+/** Whether a city matches a PostEx delivery city (case/spacing insensitive). */
+export async function isPostExDeliveryCity(city: string): Promise<boolean> {
+  const cities = await getPostExDeliveryCities();
+  if (cities.length === 0) return true;
+  const key = normalizeCityName(city);
+  return cities.some((c) => normalizeCityName(c) === key);
+}
+
 /**
  * The set of cities PostEx delivers to, normalized to lowercase. Cached for a
  * day (this list barely changes) and never throws — an outage returns an empty
@@ -369,22 +400,14 @@ const normalizeCityName = (s: string): string => s.trim().toLowerCase().replace(
  */
 const getServiceableCitiesCached = unstable_cache(
   async (): Promise<string[]> => {
-    if (!isPostExConfigured()) return [];
     try {
-      // NB: the guide (§3.1.2) says to pass `operationalCityType=Delivery`, but
-      // PostEx rejects that value with HTTP 400 (no such enum constant). The
-      // param-less call returns every operational city with an `isDeliveryCity`
-      // flag, so we fetch all and filter on the flag ourselves.
-      const rows = await getPostExOperationalCities();
-      return rows
-        .filter((r) => r.isDeliveryCity)
-        .map((r) => normalizeCityName(r.operationalCityName))
-        .filter(Boolean);
+      const cities = await getPostExDeliveryCities();
+      return cities.map(normalizeCityName).filter(Boolean);
     } catch {
       return [];
     }
   },
-  ['postex-serviceable-cities-v2'],
+  ['postex-serviceable-cities-v3'],
   { revalidate: 60 * 60 * 24, tags: ['postex-cities'] },
 );
 

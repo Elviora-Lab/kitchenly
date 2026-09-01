@@ -8,6 +8,7 @@ import { getSession } from '@/server/auth/get-session';
 import { getGuestId } from '@/server/auth/guest-session';
 import { addressesService } from '@/server/services/addresses.service';
 import { cartService } from '@/server/services/cart.service';
+import { getPostExDeliveryCities } from '@/server/shipping/postex';
 
 export const metadata = buildMetadata({ title: 'Checkout', path: '/checkout', noIndex: true });
 export const dynamic = 'force-dynamic';
@@ -19,13 +20,14 @@ export default async function CheckoutPage() {
   const session = await getSession();
   const guestId = await getGuestId();
 
-  const [addresses, cart] = await Promise.all([
+  const [addresses, cart, deliveryCities] = await Promise.all([
     session ? addressesService.list(session.sub) : Promise.resolve([]),
     // No identity yet → the bag is necessarily empty; skip cart lookup so we
     // don't try to create a cart for a non-existent session.
     session || guestId
       ? cartService.getCart({ userId: session?.sub ?? null, sessionId: guestId ?? '' })
       : Promise.resolve({ lines: [], subtotal: 0, currency: 'PKR' }),
+    getPostExDeliveryCities(),
   ]);
 
   return (
@@ -36,6 +38,7 @@ export default async function CheckoutPage() {
           <h1 className="editorial-heading text-display-lg">Checkout</h1>
         </header>
         <CheckoutClient
+          deliveryCities={deliveryCities}
           addresses={addresses.map((a) => ({
             id: a.id,
             fullName: a.fullName,
