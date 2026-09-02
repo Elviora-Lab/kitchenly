@@ -605,6 +605,13 @@ export function isPostExPickedUpStatus(raw: string): boolean {
   return raw.toLowerCase().includes('picked by postex');
 }
 
+/** True when the parcel is still with the merchant (label only — not collected yet). */
+export function isPostExPrePickupStatus(raw: string): boolean {
+  const s = raw.toLowerCase().trim();
+  if (!s || s === 'unknown') return false;
+  return s.includes('unbooked') || s.includes('at merchant') || /\bbooked\b/.test(s);
+}
+
 /** True when PostEx reports the parcel is already in the courier journey. */
 export function isPostExPostPickupStatus(raw: string): boolean {
   const s = raw.toLowerCase();
@@ -633,18 +640,19 @@ export function hasPostExPickupInTracking(dist: PostExTrackingDetail): boolean {
  * Translate a PostEx status message (from track-order or its history) into our
  * ShipmentStatus and the OrderStatus it implies. Terminal steps (Delivered,
  * Returned) end the journey; only "Picked By PostEx" marks the order SHIPPED.
+ *
+ * Unrecognized / empty statuses stay at LABEL_CREATED — never invent IN_TRANSIT.
  */
 export function mapPostExStatus(raw: string): {
   shipment: ShipmentStatus;
   order?: OrderStatus;
   terminal: boolean;
 } {
-  const s = raw.toLowerCase();
+  const s = raw.toLowerCase().trim();
 
   // Still at the merchant — label printed, rider has not collected yet.
-  if (s.includes('unbooked') || s.includes('at merchant'))
+  if (isPostExPrePickupStatus(raw))
     return { shipment: ShipmentStatus.LABEL_CREATED, terminal: false };
-  if (/\bbooked\b/.test(s)) return { shipment: ShipmentStatus.LABEL_CREATED, terminal: false };
 
   if (s.includes('expired') || s.includes('un-assigned'))
     return { shipment: ShipmentStatus.FAILED, terminal: true };
@@ -668,5 +676,6 @@ export function mapPostExStatus(raw: string): {
   if (isPostExPostPickupStatus(raw))
     return { shipment: ShipmentStatus.IN_TRANSIT, terminal: false };
 
-  return { shipment: ShipmentStatus.IN_TRANSIT, terminal: false };
+  // Ambiguous payload — keep the booking as label-created; do not invent transit.
+  return { shipment: ShipmentStatus.LABEL_CREATED, terminal: false };
 }

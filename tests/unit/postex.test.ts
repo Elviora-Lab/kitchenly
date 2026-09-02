@@ -5,6 +5,7 @@ import {
   hasPostExPickupInTracking,
   isPostExPickedUpStatus,
   isPostExPostPickupStatus,
+  isPostExPrePickupStatus,
   mapPostExStatus,
   resolvePostExCurrentStatus,
   resolvePostExJourneyText,
@@ -25,6 +26,10 @@ describe('PostEx phone normalization', () => {
 
 describe('PostEx status mapping', () => {
   it('keeps pre-pickup statuses at label-created without marking shipped', () => {
+    expect(isPostExPrePickupStatus("At Merchant's Warehouse")).toBe(true);
+    expect(isPostExPrePickupStatus('Unbooked')).toBe(true);
+    expect(isPostExPrePickupStatus('Booked')).toBe(true);
+    expect(isPostExPrePickupStatus('Unknown')).toBe(false);
     expect(mapPostExStatus("At Merchant's Warehouse")).toEqual({
       shipment: ShipmentStatus.LABEL_CREATED,
       terminal: false,
@@ -34,6 +39,21 @@ describe('PostEx status mapping', () => {
       terminal: false,
     });
     expect(mapPostExStatus('Unbooked')).toEqual({
+      shipment: ShipmentStatus.LABEL_CREATED,
+      terminal: false,
+    });
+  });
+
+  it('does not invent in-transit for unrecognized statuses', () => {
+    expect(mapPostExStatus('Unknown')).toEqual({
+      shipment: ShipmentStatus.LABEL_CREATED,
+      terminal: false,
+    });
+    expect(mapPostExStatus('')).toEqual({
+      shipment: ShipmentStatus.LABEL_CREATED,
+      terminal: false,
+    });
+    expect(mapPostExStatus('Some Future PostEx Label')).toEqual({
       shipment: ShipmentStatus.LABEL_CREATED,
       terminal: false,
     });

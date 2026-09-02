@@ -9,6 +9,7 @@ import {
   getPostExTrackingDetail,
   hasPostExPickupInTracking,
   isPostExPostPickupStatus,
+  isPostExPrePickupStatus,
   mapPostExStatus,
   resolvePostExCurrentStatus,
   resolvePostExJourneyText,
@@ -110,7 +111,7 @@ async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult>
     trackingStatusText?: string;
     trackingJourney?: string | null;
     trackingSyncedAt?: Date;
-    shippedAt?: Date;
+    shippedAt?: Date | null;
     deliveredAt?: Date;
   } = {};
 
@@ -121,8 +122,21 @@ async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult>
     shipmentPatch.trackingJourney = journeyRaw;
   }
   shipmentPatch.trackingSyncedAt = new Date();
-  if (mapped && SHIPMENT_RANK[mapped.shipment] > SHIPMENT_RANK[s.shipmentStatus]) {
-    shipmentPatch.shipmentStatus = mapped.shipment;
+
+  // Advance on clearer courier progress; also allow correcting a false IN_TRANSIT
+  // when PostEx still reports Unbooked / Booked / At Merchant.
+  if (mapped && statusRaw !== 'Unknown') {
+    const rankUp = SHIPMENT_RANK[mapped.shipment] > SHIPMENT_RANK[s.shipmentStatus];
+    const correctFalseTransit =
+      isPostExPrePickupStatus(statusRaw) &&
+      mapped.shipment === ShipmentStatus.LABEL_CREATED &&
+      s.shipmentStatus === ShipmentStatus.IN_TRANSIT;
+    if (rankUp || correctFalseTransit) {
+      shipmentPatch.shipmentStatus = mapped.shipment;
+    }
+    if (correctFalseTransit && !markShipped && AWAITING_PICKUP.includes(s.order.orderStatus)) {
+      shipmentPatch.shippedAt = null;
+    }
   }
   if (mapped?.shipment === ShipmentStatus.DELIVERED) shipmentPatch.deliveredAt = new Date();
   if (markShipped && !s.shippedAt) shipmentPatch.shippedAt = new Date();
