@@ -8,6 +8,7 @@ import { transitionOrder } from '@/server/services/order-transitions.service';
 import {
   getPostExTrackingDetail,
   hasPostExPickupInTracking,
+  isPostExPostPickupStatus,
   mapPostExStatus,
   resolvePostExCurrentStatus,
 } from '@/server/shipping/postex';
@@ -39,7 +40,7 @@ type ShipmentRow = {
   shipmentStatus: ShipmentStatus;
   shippedAt: Date | null;
   orderId: string;
-  order: { orderStatus: OrderStatus };
+  order: { orderNumber: string; orderStatus: OrderStatus };
 };
 
 export type PostExSyncResult = {
@@ -49,6 +50,11 @@ export type PostExSyncResult = {
   delivered: number;
   returned: number;
   errors: number;
+  errorDetails: Array<{
+    orderNumber: string;
+    trackingNumber: string;
+    message: string;
+  }>;
 };
 
 type ReconcileResult = {
@@ -58,6 +64,7 @@ type ReconcileResult = {
   delivered: boolean;
   returned: boolean;
   error: boolean;
+  errorMessage?: string;
 };
 
 async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult> {
@@ -82,12 +89,13 @@ async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult>
     pickedUp = hasPostExPickupInTracking(dist);
     mapped = mapPostExStatus(statusRaw);
     outcome.status = statusRaw;
-  } catch {
+  } catch (error) {
     outcome.error = true;
+    outcome.errorMessage = error instanceof Error ? error.message : 'Unknown PostEx tracking error';
     return outcome;
   }
 
-  const markShipped = pickedUp;
+  const markShipped = !mapped?.terminal && (pickedUp || isPostExPostPickupStatus(statusRaw));
 
   const shipmentPatch: {
     shipmentStatus?: ShipmentStatus;
@@ -144,7 +152,7 @@ export async function syncPostExShipments(): Promise<PostExSyncResult> {
       shipmentStatus: true,
       shippedAt: true,
       orderId: true,
-      order: { select: { orderStatus: true } },
+      order: { select: { orderNumber: true, orderStatus: true } },
     },
     orderBy: { id: 'asc' },
     take: 200,
@@ -157,13 +165,23 @@ export async function syncPostExShipments(): Promise<PostExSyncResult> {
     delivered: 0,
     returned: 0,
     errors: 0,
+    errorDetails: [],
   };
 
   for (const s of shipments) {
     if (!s.trackingNumber) continue;
     result.checked += 1;
     const row = await reconcilePostExShipment(s);
-    if (row.error) result.errors += 1;
+    if (row.error) {
+      result.errors += 1;
+      if (result.errorDetails.length < 10) {
+        result.errorDetails.push({
+          orderNumber: s.order.orderNumber,
+          trackingNumber: s.trackingNumber,
+          message: row.errorMessage ?? 'Unknown PostEx tracking error',
+        });
+      }
+    }
     if (row.updated) result.updated += 1;
     if (row.shipped) result.shipped += 1;
     if (row.delivered) result.delivered += 1;
@@ -187,7 +205,7 @@ export async function syncPostExOrder(orderId: string): Promise<{
       shipmentStatus: true,
       shippedAt: true,
       orderId: true,
-      order: { select: { orderStatus: true } },
+      order: { select: { orderNumber: true, orderStatus: true } },
     },
   });
   if (!shipment?.trackingNumber) throw new Error('No PostEx shipment found for this order');

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   hasPostExPickupInTracking,
   isPostExPickedUpStatus,
+  isPostExPostPickupStatus,
   mapPostExStatus,
   resolvePostExCurrentStatus,
   toPostExPhone,
@@ -67,6 +68,16 @@ describe('PostEx status mapping', () => {
       shipment: ShipmentStatus.IN_TRANSIT,
       terminal: false,
     });
+  });
+
+  it('treats clear courier-progress statuses as post-pickup', () => {
+    expect(isPostExPostPickupStatus('Picked By PostEx')).toBe(true);
+    expect(isPostExPostPickupStatus('At PostEx Warehouse')).toBe(true);
+    expect(isPostExPostPickupStatus('Package on Root')).toBe(true);
+    expect(isPostExPostPickupStatus('Out For Delivery')).toBe(true);
+    expect(isPostExPostPickupStatus('Attempt Made: Customer not available')).toBe(true);
+    expect(isPostExPostPickupStatus("At Merchant's Warehouse")).toBe(false);
+    expect(isPostExPostPickupStatus('Booked')).toBe(false);
   });
 
   it('detects pickup from journey history when current status has moved on', () => {

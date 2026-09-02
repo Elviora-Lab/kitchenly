@@ -566,6 +566,23 @@ export function isPostExPickedUpStatus(raw: string): boolean {
   return raw.toLowerCase().includes('picked by postex');
 }
 
+/** True when PostEx reports the parcel is already in the courier journey. */
+export function isPostExPostPickupStatus(raw: string): boolean {
+  const s = raw.toLowerCase();
+  return (
+    isPostExPickedUpStatus(raw) ||
+    s.includes('postex warehouse') ||
+    s.includes('on root') ||
+    s.includes('en-route to postex') ||
+    s.includes('en route to postex') ||
+    s.includes('in-transit') ||
+    s.includes('in transit') ||
+    s.includes('under review') ||
+    s.includes('attempt') ||
+    s.includes('out for delivery')
+  );
+}
+
 /** True when the rider pickup step appears in the current status or journey history. */
 export function hasPostExPickupInTracking(dist: PostExTrackingDetail): boolean {
   if (isPostExPickedUpStatus(dist.transactionStatus ?? '')) return true;
@@ -609,16 +626,7 @@ export function mapPostExStatus(raw: string): {
       terminal: false,
     };
 
-  if (
-    s.includes('postex warehouse') ||
-    s.includes('on root') ||
-    s.includes('en-route to postex') ||
-    s.includes('en route to postex') ||
-    s.includes('in-transit') ||
-    s.includes('in transit') ||
-    s.includes('under review') ||
-    s.includes('attempt')
-  )
+  if (isPostExPostPickupStatus(raw))
     return { shipment: ShipmentStatus.IN_TRANSIT, terminal: false };
 
   return { shipment: ShipmentStatus.IN_TRANSIT, terminal: false };
