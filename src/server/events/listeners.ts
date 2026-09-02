@@ -125,7 +125,14 @@ export function registerEventListeners() {
         savings: Number(order.discountAmount),
         savingsLabel: order.discountLabel,
         customerName: order.shippingFullName,
-        shippingAddress: formatShippingAddressHtml(order),
+        shippingAddress: formatShippingAddressHtml({
+          fullName: order.shippingFullName,
+          line1: order.shippingAddressLine1,
+          line2: order.shippingAddressLine2,
+          area: order.shippingArea,
+          city: order.shippingCity,
+          postalCode: order.shippingPostalCode,
+        }),
         isCod: order.payments[0]?.paymentMethod === 'COD',
         items: order.items.map((item) => ({
           name: item.productName,
