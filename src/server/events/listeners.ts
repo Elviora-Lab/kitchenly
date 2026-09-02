@@ -10,7 +10,10 @@ import { analyticsServer } from '@/server/analytics';
 import { signReviewToken } from '@/server/auth/tokens';
 import { sendEmail } from '@/server/email';
 import { orderCancelledEmail } from '@/server/email/templates/order-cancelled';
-import { orderConfirmationEmail } from '@/server/email/templates/order-confirmation';
+import {
+  formatShippingAddressHtml,
+  orderConfirmationEmail,
+} from '@/server/email/templates/order-confirmation';
 import { orderDeliveredEmail } from '@/server/email/templates/order-delivered';
 import { orderShippedEmail } from '@/server/email/templates/order-shipped';
 import { welcomeEmail } from '@/server/email/templates/welcome';
@@ -23,6 +26,7 @@ async function orderRecipient(orderId: string) {
     select: {
       orderNumber: true,
       userId: true,
+      paymentStatus: true,
       shippingEmail: true,
       user: { select: { email: true } },
       shipments: {
@@ -33,7 +37,7 @@ async function orderRecipient(orderId: string) {
     },
   });
   if (!order) return null;
-  return { ...order, email: order.user?.email ?? order.shippingEmail };
+  return { ...order, email: order.shippingEmail ?? order.user?.email };
 }
 
 // Registration guard on globalThis so listeners attach exactly once per
@@ -78,9 +82,22 @@ export function registerEventListeners() {
       where: { id: orderId },
       select: {
         orderNumber: true,
+        subtotal: true,
+        shippingFee: true,
+        shippingFullName: true,
         shippingEmail: true,
+        shippingAddressLine1: true,
+        shippingAddressLine2: true,
+        shippingArea: true,
+        shippingCity: true,
+        shippingPostalCode: true,
         discountAmount: true,
         discountLabel: true,
+        items: {
+          select: { productName: true, quantity: true, totalPrice: true },
+          orderBy: { productName: 'asc' },
+        },
+        payments: { select: { paymentMethod: true }, take: 1, orderBy: { id: 'desc' } },
         user: { select: { email: true } },
       },
     });
@@ -95,18 +112,28 @@ export function registerEventListeners() {
       });
     }
 
-    // Prefer the account email; fall back to the guest's checkout email.
-    const recipient = order.user?.email ?? order.shippingEmail;
+    // Prefer the email entered at checkout; fall back to the account email.
+    const recipient = order.shippingEmail ?? order.user?.email;
     if (recipient) {
-      const { subject, html } = orderConfirmationEmail({
+      const { subject, html, text } = orderConfirmationEmail({
         orderNumber: order.orderNumber,
         orderUrl: publicOrderUrl(orderId),
         total,
         currency,
+        subtotal: Number(order.subtotal),
+        shippingFee: Number(order.shippingFee),
         savings: Number(order.discountAmount),
         savingsLabel: order.discountLabel,
+        customerName: order.shippingFullName,
+        shippingAddress: formatShippingAddressHtml(order),
+        isCod: order.payments[0]?.paymentMethod === 'COD',
+        items: order.items.map((item) => ({
+          name: item.productName,
+          quantity: item.quantity,
+          lineTotal: Number(item.totalPrice),
+        })),
       });
-      await sendEmail({ to: recipient, subject, html });
+      await sendEmail({ to: recipient, subject, html, text });
     }
   });
 
@@ -139,13 +166,13 @@ export function registerEventListeners() {
       });
     }
     if (order.email) {
-      const { subject, html } = orderShippedEmail({
+      const { subject, html, text } = orderShippedEmail({
         orderNumber: order.orderNumber,
         orderUrl: publicOrderUrl(orderId),
         courierName: shipment?.courierName,
         trackingNumber: shipment?.trackingNumber,
       });
-      await sendEmail({ to: order.email, subject, html });
+      await sendEmail({ to: order.email, subject, html, text });
     }
   });
 
@@ -163,12 +190,12 @@ export function registerEventListeners() {
     if (order.email) {
       // Signed, no-login review link (verified purchase) so guests can review.
       const reviewUrl = `${siteConfig.url}/review?token=${await signReviewToken(orderId)}`;
-      const { subject, html } = orderDeliveredEmail({
+      const { subject, html, text } = orderDeliveredEmail({
         orderNumber: order.orderNumber,
         orderUrl: publicOrderUrl(orderId),
         reviewUrl,
       });
-      await sendEmail({ to: order.email, subject, html });
+      await sendEmail({ to: order.email, subject, html, text });
     }
   });
 
@@ -184,8 +211,12 @@ export function registerEventListeners() {
       });
     }
     if (order.email) {
-      const { subject, html } = orderCancelledEmail({ orderNumber: order.orderNumber });
-      await sendEmail({ to: order.email, subject, html });
+      const wasPaid = order.paymentStatus === 'PAID';
+      const { subject, html, text } = orderCancelledEmail({
+        orderNumber: order.orderNumber,
+        wasPaid,
+      });
+      await sendEmail({ to: order.email, subject, html, text });
     }
   });
 }

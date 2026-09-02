@@ -114,4 +114,19 @@ describe('sendEmail', () => {
       replyTo: 'support@kitchenly.com.pk',
     });
   });
+
+  it('surfaces Resend API errors in development', async () => {
+    sendMock.mockResolvedValueOnce({
+      data: null,
+      error: { statusCode: 403, message: 'The gmail.com domain is not verified' },
+    });
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { sendEmail } = await loadEmailModule({ RESEND_API_KEY: 're_test_123' });
+
+    await expect(
+      sendEmail({ to: 'customer@example.com', subject: 'Test', html: '<p>x</p>' }),
+    ).rejects.toThrow('The gmail.com domain is not verified');
+
+    errorLog.mockRestore();
+  });
 });

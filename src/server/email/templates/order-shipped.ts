@@ -2,6 +2,15 @@ import 'server-only';
 
 import { siteConfig } from '@/config/site';
 
+import {
+  emailDetailTable,
+  emailLayout,
+  emailNotice,
+  emailParagraph,
+  emailSteps,
+  escapeHtml,
+} from './layout';
+
 export function orderShippedEmail({
   orderNumber,
   orderUrl,
@@ -14,20 +23,60 @@ export function orderShippedEmail({
   trackingNumber?: string | null;
 }) {
   const subject = `Your ${siteConfig.name} order ${orderNumber} is on its way`;
-  const orderLink = orderUrl
-    ? `<p style="margin-top: 32px;"><a href="${orderUrl}" style="color: #15171B; font-weight: 600;">View your order →</a></p>`
-    : '';
-  const trackingBlock = trackingNumber
-    ? `<p style="line-height: 1.6; margin-top: 16px;">Courier: <strong>${courierName ?? '—'}</strong><br/>Tracking number: <strong style="font-family: monospace;">${trackingNumber}</strong></p>`
-    : '';
-  const html = `
-    <div style="font-family: Georgia, serif; max-width: 560px; margin: 0 auto; padding: 32px; color: #15171B;">
-      <h1 style="font-weight: 300; letter-spacing: 0.12em; text-transform: uppercase; font-size: 18px;">${siteConfig.name}</h1>
-      <h2 style="font-weight: 300; font-size: 28px; margin: 24px 0 8px;">It's on its way.</h2>
-      <p style="line-height: 1.6;">Order <strong>${orderNumber}</strong> has shipped and is travelling to you now.</p>
-      ${trackingBlock}
-      ${orderLink}
-    </div>
-  `;
-  return { subject, html };
+  const bodyParts: string[] = [
+    emailParagraph(
+      `Great news — order <strong>${escapeHtml(orderNumber)}</strong> has left our warehouse and is on its way to you.`,
+    ),
+  ];
+
+  if (trackingNumber) {
+    bodyParts.push(
+      emailNotice(
+        `<strong>Tracking number</strong><br/>
+        <span style="font-family:monospace;font-size:16px;letter-spacing:0.04em;">${escapeHtml(trackingNumber)}</span>
+        ${courierName ? `<br/><span style="font-size:13px;color:#5c6b7a;">Courier: ${escapeHtml(courierName)}</span>` : ''}`,
+        'success',
+      ),
+      emailDetailTable([
+        { label: 'Order', value: escapeHtml(orderNumber) },
+        { label: 'Courier', value: escapeHtml(courierName ?? 'Our delivery partner') },
+        {
+          label: 'Tracking',
+          value: `<span style="font-family:monospace;">${escapeHtml(trackingNumber)}</span>`,
+        },
+      ]),
+    );
+  } else {
+    bodyParts.push(
+      emailParagraph(
+        'Your parcel is in transit. Tracking details will be shared if available from the courier.',
+      ),
+    );
+  }
+
+  bodyParts.push(
+    emailParagraph('<strong>While you wait</strong>'),
+    emailSteps([
+      'Keep your phone handy — the courier may call before delivery.',
+      'Have your ID ready if required by the courier.',
+      'For COD orders, keep the exact amount ready at the door.',
+    ]),
+  );
+
+  const html = emailLayout({
+    preheader: trackingNumber
+      ? `Order ${orderNumber} shipped — tracking ${trackingNumber}`
+      : `Order ${orderNumber} has shipped`,
+    title: "It's on its way",
+    bodyHtml: bodyParts.join(''),
+    cta: orderUrl ? { label: 'Track your order', href: orderUrl } : undefined,
+  });
+
+  const text = [
+    `Your ${siteConfig.name} order ${orderNumber} has shipped.`,
+    ...(trackingNumber ? [`Tracking: ${trackingNumber}`, `Courier: ${courierName ?? '—'}`] : []),
+    ...(orderUrl ? [`View order: ${orderUrl}`] : []),
+  ].join('\n');
+
+  return { subject, html, text };
 }

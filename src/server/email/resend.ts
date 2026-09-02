@@ -51,6 +51,16 @@ export async function sendEmail(input: SendEmailInput): Promise<{ id: string | n
     text: input.text,
     replyTo: input.replyTo ?? serverEnv.EMAIL_REPLY_TO,
   });
+
+  if (result.error) {
+    const detail = result.error.message ?? JSON.stringify(result.error);
+    // eslint-disable-next-line no-console
+    console.error('[email] Resend rejected send:', detail, '→', input.to);
+    if (isDev) {
+      throw new Error(`Resend: ${detail}`);
+    }
+  }
+
   return { id: result.data?.id ?? null };
 }
 
