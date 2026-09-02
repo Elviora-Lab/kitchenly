@@ -100,13 +100,14 @@ export function PushPermissionNudge() {
     [pathname],
   );
 
+  // Visitor upsert runs once per tab session (see syncMarketingVisitor), not per route.
   useEffect(() => {
     if (!eligiblePath) return;
     const timer = setTimeout(() => {
       void syncMarketingVisitor();
     }, 900);
     return () => clearTimeout(timer);
-  }, [eligiblePath, pathname]);
+  }, [eligiblePath]);
 
   useEffect(() => {
     if (!eligiblePath || !firebasePushConfigured()) return;

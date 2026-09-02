@@ -4,6 +4,8 @@ import { analytics } from '@/lib/analytics';
 
 const VISITOR_KEY = 'kly_visitor_id';
 const FIRST_PATH_KEY = 'kly_first_path';
+/** One upsert per browser tab session — cuts Vercel invocations on SPA navigations. */
+const VISITOR_SESSION_SYNC_KEY = 'kly_visitor_session_synced';
 
 type VisitorUtm = {
   source?: string | null;
@@ -107,17 +109,27 @@ export function visitorPayload(): VisitorPayload {
   };
 }
 
-export async function syncMarketingVisitor(): Promise<void> {
+/**
+ * Upsert the anonymous marketing visitor. Gated to once per browser tab session
+ * so client-side navigations do not POST on every pathname change. Pass
+ * `{ force: true }` when permission or identity must be refreshed immediately
+ * (e.g. after push subscribe — though `/api/v1/push/subscribe` upserts too).
+ */
+export async function syncMarketingVisitor(options?: { force?: boolean }): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
+    if (!options?.force && window.sessionStorage.getItem(VISITOR_SESSION_SYNC_KEY) === '1') {
+      return;
+    }
     await fetch('/api/v1/marketing/visitor', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(visitorPayload()),
       keepalive: true,
     });
+    window.sessionStorage.setItem(VISITOR_SESSION_SYNC_KEY, '1');
   } catch {
-    /* best-effort */
+    /* best-effort — do not mark synced so a later attempt can retry */
   }
 }
 
