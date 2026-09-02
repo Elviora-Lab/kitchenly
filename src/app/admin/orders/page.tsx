@@ -41,6 +41,16 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
     customerPhone: o.shippingPhone ?? null,
     orderStatus: o.orderStatus,
     paymentStatus: o.paymentStatus,
+    shipment: o.shipments[0]
+      ? {
+          courierName: o.shipments[0].courierName,
+          trackingNumber: o.shipments[0].trackingNumber,
+          shipmentStatus: o.shipments[0].shipmentStatus,
+          trackingStatusText: o.shipments[0].trackingStatusText,
+          trackingJourney: o.shipments[0].trackingJourney,
+          trackingSyncedAt: o.shipments[0].trackingSyncedAt,
+        }
+      : null,
     itemCount: o._count.items,
     totalAmount: Number(o.totalAmount),
     currency: o.currency,

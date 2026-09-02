@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
+import { formatDate } from '@/utils/format';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -17,7 +19,14 @@ import {
 
 type Settlement = { settled: boolean; settlementDate: string | null; cprNumber: string | null };
 
-type Shipment = { courierName: string; trackingNumber: string | null } | null;
+type Shipment = {
+  courierName: string;
+  trackingNumber: string | null;
+  shipmentStatus: string;
+  trackingStatusText: string | null;
+  trackingJourney: string | null;
+  trackingSyncedAt: Date | null;
+} | null;
 
 export function CourierCard({
   orderId,
@@ -31,6 +40,7 @@ export function CourierCard({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [status, setStatus] = useState<string | null>(null);
+  const [journey, setJourney] = useState<string | null>(null);
   const [settlement, setSettlement] = useState<Settlement | null>(null);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
@@ -51,6 +61,7 @@ export function CourierCard({
       const res = await refreshPostExTracking({ orderId });
       if (res.success) {
         setStatus(res.data.status);
+        setJourney(res.data.journey);
         if (res.data.shipped) {
           toast.success(`Shipped — ${res.data.status}`);
         } else {
@@ -104,7 +115,20 @@ export function CourierCard({
           <span className="text-muted-foreground">Tracking #:</span>{' '}
           <span className="font-mono">{tn}</span>
         </div>
-        {status ? <div className="text-xs text-muted-foreground">Latest: {status}</div> : null}
+        <div className="text-xs text-muted-foreground">
+          Status: {status ?? shipment.trackingStatusText ?? shipment.shipmentStatus}
+        </div>
+        {(journey ?? shipment.trackingJourney) ? (
+          <div className="text-xs text-muted-foreground">
+            Journey: {journey ?? shipment.trackingJourney}
+          </div>
+        ) : null}
+        {shipment.trackingSyncedAt ? (
+          <div className="text-xs text-muted-foreground">
+            Synced:{' '}
+            {formatDate(shipment.trackingSyncedAt, { dateStyle: 'medium', timeStyle: 'short' })}
+          </div>
+        ) : null}
         {settlement ? (
           <div className="text-xs text-muted-foreground">
             COD:{' '}

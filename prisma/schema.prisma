@@ -972,13 +972,16 @@ model Payment {
 
 /// Carrier dispatch + tracking. One order may ship in multiple parcels.
 model Shipment {
-  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orderId        String         @map("order_id") @db.Uuid
-  courierName    String         @map("courier_name") @db.VarChar(120)
-  trackingNumber String?        @unique @map("tracking_number") @db.VarChar(120)
-  shipmentStatus ShipmentStatus @default(PENDING) @map("shipment_status")
-  shippedAt      DateTime?      @map("shipped_at") @db.Timestamptz
-  deliveredAt    DateTime?      @map("delivered_at") @db.Timestamptz
+  id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId            String         @map("order_id") @db.Uuid
+  courierName        String         @map("courier_name") @db.VarChar(120)
+  trackingNumber     String?        @unique @map("tracking_number") @db.VarChar(120)
+  shipmentStatus     ShipmentStatus @default(PENDING) @map("shipment_status")
+  trackingStatusText String?        @map("tracking_status_text") @db.VarChar(120)
+  trackingJourney    String?        @map("tracking_journey") @db.VarChar(255)
+  trackingSyncedAt   DateTime?      @map("tracking_synced_at") @db.Timestamptz
+  shippedAt          DateTime?      @map("shipped_at") @db.Timestamptz
+  deliveredAt        DateTime?      @map("delivered_at") @db.Timestamptz
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 

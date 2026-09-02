@@ -200,8 +200,11 @@ export default async function CustomerOrderDetailPage({ params }: { params: Para
                   <div key={s.id} className="flex flex-col gap-0.5">
                     <div className="flex items-center justify-between">
                       <span>{s.courierName}</span>
-                      <Badge variant="muted">{s.shipmentStatus}</Badge>
+                      <Badge variant="muted">{s.trackingStatusText ?? s.shipmentStatus}</Badge>
                     </div>
+                    {s.trackingJourney ? (
+                      <span className="text-xs text-muted-foreground">{s.trackingJourney}</span>
+                    ) : null}
                     {s.trackingNumber ? (
                       <span className="font-mono text-xs text-muted-foreground">
                         {s.trackingNumber}

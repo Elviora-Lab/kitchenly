@@ -123,6 +123,8 @@ async function bookOrderWithPostEx(orderId: string, changedBy: string) {
       trackingNumber,
       // Label exists; parcel is not handed to the courier yet — SHIPPED comes later.
       shipmentStatus: 'LABEL_CREATED',
+      trackingStatusText: 'Booked',
+      trackingSyncedAt: new Date(),
     },
   });
   await transitionOrder(
@@ -213,6 +215,8 @@ export const addManualShipment = withAction(async (input: z.infer<typeof manualS
       courierName,
       trackingNumber,
       shipmentStatus: 'IN_TRANSIT',
+      trackingStatusText: 'In transit',
+      trackingSyncedAt: new Date(),
       shippedAt: new Date(),
     },
   });

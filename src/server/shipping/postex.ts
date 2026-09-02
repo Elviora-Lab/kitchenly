@@ -52,6 +52,9 @@ export type PostExOrderRow = Record<string, unknown> & {
   orderRefNumber?: string;
   trackingNumber?: string;
   transactionStatus?: string;
+  transactionStatusMessage?: string;
+  journey?: string;
+  journeyStatus?: string;
   cityName?: string;
   customerName?: string;
   customerPhone?: string;
@@ -303,36 +306,72 @@ export async function getPostExTrackingDetail(
   return json.dist ?? {};
 }
 
-/** Fetch the latest tracking status for a consignment. Best-effort message. */
-export function resolvePostExCurrentStatus(dist: PostExTrackingDetail): string {
-  // PostEx sets `transactionStatus` to the parcel's current step in the portal.
-  const summary = dist.transactionStatus;
-  if (typeof summary === 'string' && summary.trim()) return summary.trim();
+function textField(row: Record<string, unknown>, fields: string[]): string | null {
+  for (const field of fields) {
+    const value = row[field];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  }
+  return null;
+}
 
-  const history = Array.isArray(dist.transactionStatusHistory) ? dist.transactionStatusHistory : [];
-  if (history.length === 0) return 'Unknown';
+function latestPostExHistoryRow(
+  history: PostExTrackingHistoryRow[],
+): PostExTrackingHistoryRow | null {
+  if (history.length === 0) return null;
 
-  // History rows carry numeric codes — pick the highest as the latest event.
   const coded = history.filter((row) => row.transactionStatusMessageCode);
   if (coded.length > 0) {
-    const latest = coded.reduce((best, row) => {
+    return coded.reduce((best, row) => {
       const code = Number.parseInt(String(row.transactionStatusMessageCode), 10);
       const bestCode = Number.parseInt(String(best.transactionStatusMessageCode), 10);
       return code > bestCode ? row : best;
     });
-    if (latest.transactionStatusMessage) return latest.transactionStatusMessage;
   }
 
-  return String(history[history.length - 1]?.transactionStatusMessage ?? 'Unknown');
+  return history[history.length - 1] ?? null;
+}
+
+/** Fetch the latest tracking status for a consignment. Best-effort message. */
+export function resolvePostExCurrentStatus(dist: PostExTrackingDetail): string {
+  // PostEx sets `transactionStatus` to the parcel's current step in the portal.
+  const summary = textField(dist, ['transactionStatus', 'status', 'orderStatus']);
+  if (summary) return summary;
+
+  const history = Array.isArray(dist.transactionStatusHistory) ? dist.transactionStatusHistory : [];
+  const latest = latestPostExHistoryRow(history);
+  if (latest?.transactionStatusMessage) return latest.transactionStatusMessage;
+
+  return 'Unknown';
+}
+
+/** Fetch the human journey/location message PostEx shows beside the status. */
+export function resolvePostExJourneyText(dist: PostExTrackingDetail): string | null {
+  const status = resolvePostExCurrentStatus(dist);
+  const direct = textField(dist, [
+    'journey',
+    'journeyStatus',
+    'transactionStatusMessage',
+    'trackingMessage',
+    'currentStatusMessage',
+  ]);
+  if (direct && direct !== status) return direct;
+
+  const history = Array.isArray(dist.transactionStatusHistory) ? dist.transactionStatusHistory : [];
+  const latest = latestPostExHistoryRow(history)?.transactionStatusMessage?.trim();
+  if (latest && latest !== status) return latest;
+
+  return direct ?? null;
 }
 
 /** Fetch the latest tracking status for a consignment. Best-effort message. */
 export async function trackPostExOrder(
   trackingNumber: string,
-): Promise<{ status: string; pickedUp: boolean }> {
+): Promise<{ status: string; journey: string | null; pickedUp: boolean }> {
   const dist = await getPostExTrackingDetail(trackingNumber);
   return {
     status: resolvePostExCurrentStatus(dist),
+    journey: resolvePostExJourneyText(dist),
     pickedUp: hasPostExPickupInTracking(dist),
   };
 }

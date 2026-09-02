@@ -49,6 +49,9 @@ export default async function AdminPostExPage() {
         id: true,
         trackingNumber: true,
         shipmentStatus: true,
+        trackingStatusText: true,
+        trackingJourney: true,
+        trackingSyncedAt: true,
         shippedAt: true,
         deliveredAt: true,
         order: {
@@ -112,9 +115,9 @@ export default async function AdminPostExPage() {
                 <tr className="border-b border-border/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-2.5 font-medium">Order</th>
                   <th className="px-4 py-2.5 font-medium">Tracking</th>
-                  <th className="px-4 py-2.5 font-medium">Shipment</th>
+                  <th className="px-4 py-2.5 font-medium">PostEx status</th>
                   <th className="px-4 py-2.5 font-medium">Customer</th>
-                  <th className="px-4 py-2.5 font-medium">Shipped</th>
+                  <th className="px-4 py-2.5 font-medium">Synced</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -142,7 +145,14 @@ export default async function AdminPostExPage() {
                         {shipment.trackingNumber ?? '—'}
                       </td>
                       <td className="px-4 py-3">
-                        <Badge variant="outline">{shipment.shipmentStatus}</Badge>
+                        <Badge variant="outline">
+                          {shipment.trackingStatusText ?? shipment.shipmentStatus}
+                        </Badge>
+                        {shipment.trackingJourney ? (
+                          <div className="mt-1 max-w-[260px] text-xs text-muted-foreground">
+                            {shipment.trackingJourney}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3">
                         <div>{shipment.order.shippingFullName ?? '—'}</div>
@@ -151,7 +161,12 @@ export default async function AdminPostExPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
-                        {shipment.shippedAt ? formatDate(shipment.shippedAt) : '—'}
+                        {shipment.trackingSyncedAt
+                          ? formatDate(shipment.trackingSyncedAt, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })
+                          : '—'}
                       </td>
                     </tr>
                   ))

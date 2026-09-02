@@ -27,6 +27,14 @@ type Row = {
   customerPhone: string | null;
   orderStatus: OrderStatus;
   paymentStatus: string;
+  shipment: {
+    courierName: string;
+    trackingNumber: string | null;
+    shipmentStatus: string;
+    trackingStatusText: string | null;
+    trackingJourney: string | null;
+    trackingSyncedAt: Date | null;
+  } | null;
   itemCount: number;
   totalAmount: number;
   currency: string;
@@ -195,7 +203,7 @@ export function OrdersTable({ rows }: { rows: Row[] }) {
         </div>
       </div>
 
-      <table className="w-full min-w-[900px] text-sm">
+      <table className="w-full min-w-[1080px] text-sm">
         <thead className="border-b border-border">
           <tr className="text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
             <th className="w-10 px-4 py-3">
@@ -213,6 +221,7 @@ export function OrdersTable({ rows }: { rows: Row[] }) {
             <th className="px-4 py-3">Order</th>
             <th className="px-4 py-3">Customer</th>
             <th className="px-4 py-3">Status</th>
+            <th className="px-4 py-3">Courier</th>
             <th className="px-4 py-3">Payment</th>
             <th className="px-4 py-3">Items</th>
             <th className="px-4 py-3">Total</th>
@@ -255,6 +264,30 @@ export function OrdersTable({ rows }: { rows: Row[] }) {
                 </td>
                 <td className="px-4 py-3">
                   <Badge variant="muted">{o.orderStatus}</Badge>
+                </td>
+                <td className="max-w-[260px] px-4 py-3">
+                  {o.shipment ? (
+                    <div className="flex flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{o.shipment.courierName}</span>
+                        <Badge variant="outline">
+                          {o.shipment.trackingStatusText ?? o.shipment.shipmentStatus}
+                        </Badge>
+                      </div>
+                      {o.shipment.trackingNumber ? (
+                        <div className="font-mono text-xs text-muted-foreground">
+                          {o.shipment.trackingNumber}
+                        </div>
+                      ) : null}
+                      {o.shipment.trackingJourney ? (
+                        <div className="line-clamp-2 text-xs text-muted-foreground">
+                          {o.shipment.trackingJourney}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <Badge variant={o.paymentStatus === 'PAID' ? 'success' : 'muted'}>

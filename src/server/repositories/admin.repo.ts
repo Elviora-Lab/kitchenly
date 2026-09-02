@@ -192,6 +192,18 @@ export const adminOrdersRepo = {
         take: opts.take ?? 50,
         include: {
           user: { select: { email: true, firstName: true, lastName: true } },
+          shipments: {
+            orderBy: [{ shippedAt: 'desc' }, { id: 'desc' }],
+            take: 1,
+            select: {
+              courierName: true,
+              trackingNumber: true,
+              shipmentStatus: true,
+              trackingStatusText: true,
+              trackingJourney: true,
+              trackingSyncedAt: true,
+            },
+          },
           _count: { select: { items: true } },
         },
       }),

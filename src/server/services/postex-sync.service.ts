@@ -11,6 +11,7 @@ import {
   isPostExPostPickupStatus,
   mapPostExStatus,
   resolvePostExCurrentStatus,
+  resolvePostExJourneyText,
 } from '@/server/shipping/postex';
 
 /** Shipment states we no longer poll — the parcel's journey is over. */
@@ -38,6 +39,8 @@ type ShipmentRow = {
   id: string;
   trackingNumber: string | null;
   shipmentStatus: ShipmentStatus;
+  trackingStatusText: string | null;
+  trackingJourney: string | null;
   shippedAt: Date | null;
   orderId: string;
   order: { orderNumber: string; orderStatus: OrderStatus };
@@ -59,6 +62,7 @@ export type PostExSyncResult = {
 
 type ReconcileResult = {
   status: string;
+  journey: string | null;
   updated: boolean;
   shipped: boolean;
   delivered: boolean;
@@ -70,6 +74,7 @@ type ReconcileResult = {
 async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult> {
   const outcome: ReconcileResult = {
     status: 'Unknown',
+    journey: null,
     updated: false,
     shipped: false,
     delivered: false,
@@ -80,15 +85,18 @@ async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult>
   if (!s.trackingNumber) return outcome;
 
   let statusRaw = 'Unknown';
+  let journeyRaw: string | null = null;
   let mapped: ReturnType<typeof mapPostExStatus> | null = null;
   let pickedUp = false;
 
   try {
     const dist = await getPostExTrackingDetail(s.trackingNumber);
     statusRaw = resolvePostExCurrentStatus(dist);
+    journeyRaw = resolvePostExJourneyText(dist);
     pickedUp = hasPostExPickupInTracking(dist);
     mapped = mapPostExStatus(statusRaw);
     outcome.status = statusRaw;
+    outcome.journey = journeyRaw;
   } catch (error) {
     outcome.error = true;
     outcome.errorMessage = error instanceof Error ? error.message : 'Unknown PostEx tracking error';
@@ -99,10 +107,20 @@ async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult>
 
   const shipmentPatch: {
     shipmentStatus?: ShipmentStatus;
+    trackingStatusText?: string;
+    trackingJourney?: string | null;
+    trackingSyncedAt?: Date;
     shippedAt?: Date;
     deliveredAt?: Date;
   } = {};
 
+  if (statusRaw !== 'Unknown' && statusRaw !== s.trackingStatusText) {
+    shipmentPatch.trackingStatusText = statusRaw;
+  }
+  if (journeyRaw !== s.trackingJourney) {
+    shipmentPatch.trackingJourney = journeyRaw;
+  }
+  shipmentPatch.trackingSyncedAt = new Date();
   if (mapped && SHIPMENT_RANK[mapped.shipment] > SHIPMENT_RANK[s.shipmentStatus]) {
     shipmentPatch.shipmentStatus = mapped.shipment;
   }
@@ -150,6 +168,8 @@ export async function syncPostExShipments(): Promise<PostExSyncResult> {
       id: true,
       trackingNumber: true,
       shipmentStatus: true,
+      trackingStatusText: true,
+      trackingJourney: true,
       shippedAt: true,
       orderId: true,
       order: { select: { orderNumber: true, orderStatus: true } },
@@ -194,6 +214,7 @@ export async function syncPostExShipments(): Promise<PostExSyncResult> {
 /** Reconcile one PostEx shipment — used by admin "Refresh status". */
 export async function syncPostExOrder(orderId: string): Promise<{
   status: string;
+  journey: string | null;
   orderStatus: OrderStatus;
   shipped: boolean;
 }> {
@@ -203,6 +224,8 @@ export async function syncPostExOrder(orderId: string): Promise<{
       id: true,
       trackingNumber: true,
       shipmentStatus: true,
+      trackingStatusText: true,
+      trackingJourney: true,
       shippedAt: true,
       orderId: true,
       order: { select: { orderNumber: true, orderStatus: true } },
@@ -218,6 +241,7 @@ export async function syncPostExOrder(orderId: string): Promise<{
 
   return {
     status: row.status,
+    journey: row.journey,
     orderStatus: order.orderStatus,
     shipped: row.shipped,
   };

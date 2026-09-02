@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   hasPostExPickupInTracking: vi.fn(),
   isPostExPostPickupStatus: vi.fn(),
   mapPostExStatus: vi.fn(),
+  resolvePostExJourneyText: vi.fn(),
   resolvePostExCurrentStatus: vi.fn(),
   shipmentFindMany: vi.fn(),
   shipmentUpdate: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock('@/server/shipping/postex', () => ({
   hasPostExPickupInTracking: mocks.hasPostExPickupInTracking,
   isPostExPostPickupStatus: mocks.isPostExPostPickupStatus,
   mapPostExStatus: mocks.mapPostExStatus,
+  resolvePostExJourneyText: mocks.resolvePostExJourneyText,
   resolvePostExCurrentStatus: mocks.resolvePostExCurrentStatus,
 }));
 
@@ -48,6 +50,8 @@ describe('PostEx shipment sync', () => {
         id: 'shipment-1',
         trackingNumber: '24711770000012',
         shipmentStatus: 'LABEL_CREATED',
+        trackingStatusText: null,
+        trackingJourney: null,
         shippedAt: null,
         orderId: 'order-1',
         order: {
@@ -81,6 +85,8 @@ describe('PostEx shipment sync', () => {
         id: 'shipment-1',
         trackingNumber: '24711770000012',
         shipmentStatus: 'LABEL_CREATED',
+        trackingStatusText: null,
+        trackingJourney: null,
         shippedAt: null,
         orderId: 'order-1',
         order: {
@@ -91,6 +97,7 @@ describe('PostEx shipment sync', () => {
     ]);
     mocks.getPostExTrackingDetail.mockResolvedValue({ transactionStatus: 'At PostEx Warehouse' });
     mocks.resolvePostExCurrentStatus.mockReturnValue('At PostEx Warehouse');
+    mocks.resolvePostExJourneyText.mockReturnValue('En-Route to PHALIA warehouse');
     mocks.hasPostExPickupInTracking.mockReturnValue(false);
     mocks.isPostExPostPickupStatus.mockReturnValue(true);
     mocks.mapPostExStatus.mockReturnValue({ shipment: 'IN_TRANSIT', terminal: false });
@@ -107,6 +114,9 @@ describe('PostEx shipment sync', () => {
       where: { id: 'shipment-1' },
       data: expect.objectContaining({
         shipmentStatus: 'IN_TRANSIT',
+        trackingStatusText: 'At PostEx Warehouse',
+        trackingJourney: 'En-Route to PHALIA warehouse',
+        trackingSyncedAt: expect.any(Date),
         shippedAt: expect.any(Date),
       }),
     });

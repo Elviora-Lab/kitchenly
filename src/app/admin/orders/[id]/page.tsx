@@ -145,6 +145,10 @@ export default async function AdminOrderDetailPage({
                     ? {
                         courierName: order.shipments[0].courierName,
                         trackingNumber: order.shipments[0].trackingNumber,
+                        shipmentStatus: order.shipments[0].shipmentStatus,
+                        trackingStatusText: order.shipments[0].trackingStatusText,
+                        trackingJourney: order.shipments[0].trackingJourney,
+                        trackingSyncedAt: order.shipments[0].trackingSyncedAt,
                       }
                     : null
                 }

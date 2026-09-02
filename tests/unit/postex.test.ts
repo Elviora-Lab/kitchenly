@@ -7,6 +7,7 @@ import {
   isPostExPostPickupStatus,
   mapPostExStatus,
   resolvePostExCurrentStatus,
+  resolvePostExJourneyText,
   toPostExPhone,
 } from '@/server/shipping/postex';
 
@@ -113,6 +114,16 @@ describe('PostEx status mapping', () => {
         ],
       }),
     ).toBe('Picked By PostEx');
+  });
+
+  it('keeps PostEx journey text separate from the broad status', () => {
+    const tracking = {
+      transactionStatus: 'In-Transit',
+      transactionStatusMessage: 'En-Route to PHALIA warehouse',
+    };
+
+    expect(resolvePostExCurrentStatus(tracking)).toBe('In-Transit');
+    expect(resolvePostExJourneyText(tracking)).toBe('En-Route to PHALIA warehouse');
   });
 
   it('picks the highest status code from history when summary is absent', () => {
