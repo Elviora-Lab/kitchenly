@@ -223,7 +223,7 @@ export function CartPageClient() {
         </aside>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 p-3 shadow-elevated backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 p-3 shadow-elevated backdrop-blur lg:hidden">
         <div className="container flex items-center gap-3 px-0">
           <div className="min-w-0 flex-1">
             <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Cart total</p>

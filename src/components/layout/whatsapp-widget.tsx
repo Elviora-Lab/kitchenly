@@ -55,6 +55,10 @@ export function WhatsAppWidget() {
 
   if (pathname.startsWith('/checkout')) return null;
 
+  // Product PDP and cart both pin a conversion CTA to the bottom on mobile —
+  // lift the widget so it doesn't overlap the tap target.
+  const hasBottomCta = /^\/products\/[^/]+$/.test(pathname) || pathname === '/cart';
+
   // wa.me needs the number in international format with no +, spaces, or dashes.
   const number = siteConfig.contact.phone.replace(/\D/g, '');
   const text = encodeURIComponent(
@@ -64,9 +68,9 @@ export function WhatsAppWidget() {
 
   return (
     <div
-      className={`fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3 transition-all duration-500 ease-out ${
-        entered ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-6 opacity-0'
-      }`}
+      className={`fixed right-5 z-30 flex flex-col items-end gap-3 transition-all duration-500 ease-out ${
+        hasBottomCta ? 'bottom-24 sm:bottom-5' : 'bottom-5'
+      } ${entered ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-6 opacity-0'}`}
     >
       {/* Teaser bubble */}
       <div

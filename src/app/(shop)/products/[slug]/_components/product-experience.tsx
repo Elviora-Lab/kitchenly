@@ -536,7 +536,7 @@ export function ProductExperience({
       </div>
 
       {showSticky && canAdd && !outOfStock ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 shadow-elevated backdrop-blur motion-safe:animate-in motion-safe:slide-in-from-bottom-3">
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 shadow-elevated backdrop-blur motion-safe:animate-in motion-safe:slide-in-from-bottom-3">
           <div className="container flex items-center gap-3 py-3">
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{productName}</p>
