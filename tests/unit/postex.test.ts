@@ -27,10 +27,16 @@ describe('PostEx phone normalization', () => {
 describe('PostEx status mapping', () => {
   it('keeps pre-pickup statuses at label-created without marking shipped', () => {
     expect(isPostExPrePickupStatus("At Merchant's Warehouse")).toBe(true);
+    expect(isPostExPrePickupStatus('At Kitchenly Warehouse')).toBe(true);
     expect(isPostExPrePickupStatus('Unbooked')).toBe(true);
     expect(isPostExPrePickupStatus('Booked')).toBe(true);
+    expect(isPostExPrePickupStatus('At PostEx Warehouse')).toBe(false);
     expect(isPostExPrePickupStatus('Unknown')).toBe(false);
     expect(mapPostExStatus("At Merchant's Warehouse")).toEqual({
+      shipment: ShipmentStatus.LABEL_CREATED,
+      terminal: false,
+    });
+    expect(mapPostExStatus('At Kitchenly Warehouse')).toEqual({
       shipment: ShipmentStatus.LABEL_CREATED,
       terminal: false,
     });
@@ -89,15 +95,26 @@ describe('PostEx status mapping', () => {
       shipment: ShipmentStatus.IN_TRANSIT,
       terminal: false,
     });
+    expect(mapPostExStatus('En-Route to Lahore warehouse')).toEqual({
+      shipment: ShipmentStatus.IN_TRANSIT,
+      terminal: false,
+    });
+    expect(mapPostExStatus('Departed to PostEx. Warehouse')).toEqual({
+      shipment: ShipmentStatus.IN_TRANSIT,
+      terminal: false,
+    });
   });
 
   it('treats clear courier-progress statuses as post-pickup', () => {
     expect(isPostExPostPickupStatus('Picked By PostEx')).toBe(true);
     expect(isPostExPostPickupStatus('At PostEx Warehouse')).toBe(true);
+    expect(isPostExPostPickupStatus('Departed to PostEx. Warehouse')).toBe(true);
+    expect(isPostExPostPickupStatus('En-Route to Lahore warehouse')).toBe(true);
     expect(isPostExPostPickupStatus('Package on Root')).toBe(true);
     expect(isPostExPostPickupStatus('Out For Delivery')).toBe(true);
     expect(isPostExPostPickupStatus('Attempt Made: Customer not available')).toBe(true);
     expect(isPostExPostPickupStatus("At Merchant's Warehouse")).toBe(false);
+    expect(isPostExPostPickupStatus('At Kitchenly Warehouse')).toBe(false);
     expect(isPostExPostPickupStatus('Booked')).toBe(false);
   });
 

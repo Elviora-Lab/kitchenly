@@ -609,7 +609,10 @@ export function isPostExPickedUpStatus(raw: string): boolean {
 export function isPostExPrePickupStatus(raw: string): boolean {
   const s = raw.toLowerCase().trim();
   if (!s || s === 'unknown') return false;
-  return s.includes('unbooked') || s.includes('at merchant') || /\bbooked\b/.test(s);
+  if (s.includes('unbooked') || s.includes('at merchant') || /\bbooked\b/.test(s)) return true;
+  // PostEx uses the merchant brand: "At Kitchenly Warehouse" — still not collected.
+  if (/\bat\b/.test(s) && s.includes('warehouse') && !/postex/.test(s)) return true;
+  return false;
 }
 
 /** True when PostEx reports the parcel is already in the courier journey. */
@@ -617,10 +620,11 @@ export function isPostExPostPickupStatus(raw: string): boolean {
   const s = raw.toLowerCase();
   return (
     isPostExPickedUpStatus(raw) ||
-    s.includes('postex warehouse') ||
+    /postex\.?\s*warehouse/.test(s) ||
+    s.includes('departed to postex') ||
     s.includes('on root') ||
-    s.includes('en-route to postex') ||
-    s.includes('en route to postex') ||
+    s.includes('en-route') ||
+    s.includes('en route') ||
     s.includes('in-transit') ||
     s.includes('in transit') ||
     s.includes('under review') ||

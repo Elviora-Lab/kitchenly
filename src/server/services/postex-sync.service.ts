@@ -124,7 +124,7 @@ async function reconcilePostExShipment(s: ShipmentRow): Promise<ReconcileResult>
   shipmentPatch.trackingSyncedAt = new Date();
 
   // Advance on clearer courier progress; also allow correcting a false IN_TRANSIT
-  // when PostEx still reports Unbooked / Booked / At Merchant.
+  // when PostEx still reports a pre-pickup status (Unbooked / Booked / At * Warehouse).
   if (mapped && statusRaw !== 'Unknown') {
     const rankUp = SHIPMENT_RANK[mapped.shipment] > SHIPMENT_RANK[s.shipmentStatus];
     const correctFalseTransit =
