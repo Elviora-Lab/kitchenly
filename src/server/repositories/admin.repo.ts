@@ -182,8 +182,31 @@ export const adminProductsRepo = {
 // ---------- Orders ----------
 
 export const adminOrdersRepo = {
-  list(opts: { status?: OrderStatus; skip?: number; take?: number } = {}) {
-    const where: Prisma.OrderWhereInput = opts.status ? { orderStatus: opts.status } : {};
+  list(opts: { status?: OrderStatus; q?: string; skip?: number; take?: number } = {}) {
+    const q = opts.q?.trim();
+    const where: Prisma.OrderWhereInput = {
+      ...(opts.status ? { orderStatus: opts.status } : {}),
+      ...(q
+        ? {
+            OR: [
+              { orderNumber: { contains: q, mode: 'insensitive' } },
+              { shippingFullName: { contains: q, mode: 'insensitive' } },
+              { shippingEmail: { contains: q, mode: 'insensitive' } },
+              { shippingPhone: { contains: q, mode: 'insensitive' } },
+              { user: { email: { contains: q, mode: 'insensitive' } } },
+              {
+                user: {
+                  OR: [
+                    { firstName: { contains: q, mode: 'insensitive' } },
+                    { lastName: { contains: q, mode: 'insensitive' } },
+                  ],
+                },
+              },
+              { shipments: { some: { trackingNumber: { contains: q, mode: 'insensitive' } } } },
+            ],
+          }
+        : {}),
+    };
     return prisma.$transaction([
       prisma.order.findMany({
         where,

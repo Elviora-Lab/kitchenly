@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { OrderStatus } from '@prisma/client';
 import { z } from 'zod';
@@ -7,6 +8,7 @@ import { buildMetadata } from '@/lib/seo/metadata';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
+import { OrdersSearch } from './orders-search';
 import { OrdersTable } from './orders-table';
 
 import { adminOrdersRepo } from '@/server/repositories/admin.repo';
@@ -17,15 +19,24 @@ export const dynamic = 'force-dynamic';
 const statusValues = Object.values(OrderStatus);
 const filterSchema = z.object({
   status: z.enum(statusValues as [OrderStatus, ...OrderStatus[]]).optional(),
+  q: z.string().trim().max(120).optional(),
 });
 
-type Props = { searchParams: Promise<{ status?: string }> };
+type Props = { searchParams: Promise<{ status?: string; q?: string }> };
+
+function statusHref(status?: OrderStatus, q?: string) {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (q) params.set('q', q);
+  const qs = params.toString();
+  return qs ? `/admin/orders?${qs}` : '/admin/orders';
+}
 
 export default async function AdminOrdersPage({ searchParams }: Props) {
   const raw = await searchParams;
-  const { status } = filterSchema.parse({ status: raw.status });
+  const { status, q } = filterSchema.parse({ status: raw.status, q: raw.q });
 
-  const [items, total] = await adminOrdersRepo.list({ status, take: 100 });
+  const [items, total] = await adminOrdersRepo.list({ status, q, take: 100 });
 
   // Project the Prisma rows to a plain client-safe shape.
   const rows = items.map((o) => ({
@@ -74,13 +85,17 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
         </Link>
       </header>
 
+      <Suspense fallback={null}>
+        <OrdersSearch />
+      </Suspense>
+
       <div className="flex flex-wrap gap-2">
         <Button asChild size="sm" variant={!status ? 'primary' : 'outline'}>
-          <Link href="/admin/orders">All</Link>
+          <Link href={statusHref(undefined, q)}>All</Link>
         </Button>
         {statusValues.map((s) => (
           <Button key={s} asChild size="sm" variant={status === s ? 'primary' : 'outline'}>
-            <Link href={`/admin/orders?status=${s}`}>{s}</Link>
+            <Link href={statusHref(s, q)}>{s}</Link>
           </Button>
         ))}
       </div>
