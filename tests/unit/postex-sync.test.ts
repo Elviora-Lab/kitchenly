@@ -205,6 +205,9 @@ describe('PostEx shipment sync', () => {
         trackingSyncedAt: expect.any(Date),
       }),
     });
-    expect(mocks.shipmentUpdate.mock.calls[0][0].data.shipmentStatus).toBeUndefined();
+    const patch = mocks.shipmentUpdate.mock.calls[0]?.[0] as
+      | { data?: { shipmentStatus?: string } }
+      | undefined;
+    expect(patch?.data?.shipmentStatus).toBeUndefined();
   });
 });
