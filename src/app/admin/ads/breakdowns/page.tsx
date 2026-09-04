@@ -1,15 +1,14 @@
-import { DEFAULT_AD_RANGE, isAdDatePreset } from '@/lib/ads/date-presets';
+import { parseAdDateSelection } from '@/lib/ads/date-presets';
 
 import { AdsErrorCard, SetupCard } from '../ads-shared';
 import { BreakdownTabs } from '../breakdown-tabs';
 
 import { adsInsightsEnabled, getAdsBreakdownsData } from '@/server/analytics/meta-ads';
 
-type Props = { searchParams: Promise<{ range?: string }> };
+type Props = { searchParams: Promise<{ range?: string; from?: string; to?: string }> };
 
 export default async function AdminAdsBreakdownsPage({ searchParams }: Props) {
-  const { range: rawRange } = await searchParams;
-  const range = isAdDatePreset(rawRange) ? rawRange : DEFAULT_AD_RANGE;
+  const range = parseAdDateSelection(await searchParams);
 
   if (!adsInsightsEnabled()) return <SetupCard />;
 

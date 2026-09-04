@@ -1,4 +1,4 @@
-import { DEFAULT_AD_RANGE, isAdDatePreset } from '@/lib/ads/date-presets';
+import { adDateSelectionToSearchParams, parseAdDateSelection } from '@/lib/ads/date-presets';
 import { cn } from '@/lib/cn';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,11 +14,13 @@ import {
   getAdsSummary,
 } from '@/server/analytics/meta-ads';
 
-type Props = { searchParams: Promise<{ range?: string; campaign?: string }> };
+type Props = {
+  searchParams: Promise<{ range?: string; from?: string; to?: string; campaign?: string }>;
+};
 
 export default async function AdminAdsFunnelPage({ searchParams }: Props) {
-  const { range: rawRange, campaign } = await searchParams;
-  const range = isAdDatePreset(rawRange) ? rawRange : DEFAULT_AD_RANGE;
+  const { campaign, ...dateParams } = await searchParams;
+  const range = parseAdDateSelection(dateParams);
 
   if (!adsInsightsEnabled()) return <SetupCard />;
 
@@ -46,7 +48,11 @@ export default async function AdminAdsFunnelPage({ searchParams }: Props) {
     <div className="flex flex-col gap-6">
       {/* Campaign scope */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <CampaignFilter range={range} campaignId={campaign} options={campaignOptions} />
+        <CampaignFilter
+          dateQuery={adDateSelectionToSearchParams(range)}
+          campaignId={campaign}
+          options={campaignOptions}
+        />
         {selectedCampaign ? (
           <span className="text-xs text-muted-foreground">
             Scoped to <span className="font-medium text-foreground">{selectedCampaign.name}</span>

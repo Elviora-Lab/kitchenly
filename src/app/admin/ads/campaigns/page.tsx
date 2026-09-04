@@ -1,4 +1,4 @@
-import { DEFAULT_AD_RANGE, isAdDatePreset } from '@/lib/ads/date-presets';
+import { parseAdDateSelection } from '@/lib/ads/date-presets';
 import { cn } from '@/lib/cn';
 
 import { AdsErrorCard, SetupCard } from '../ads-shared';
@@ -8,11 +8,10 @@ import { intText, money, roasText } from '../format';
 
 import { adsInsightsEnabled, getAdsCampaignsData, type TopAd } from '@/server/analytics/meta-ads';
 
-type Props = { searchParams: Promise<{ range?: string }> };
+type Props = { searchParams: Promise<{ range?: string; from?: string; to?: string }> };
 
 export default async function AdminAdsCampaignsPage({ searchParams }: Props) {
-  const { range: rawRange } = await searchParams;
-  const range = isAdDatePreset(rawRange) ? rawRange : DEFAULT_AD_RANGE;
+  const range = parseAdDateSelection(await searchParams);
 
   if (!adsInsightsEnabled()) return <SetupCard />;
 

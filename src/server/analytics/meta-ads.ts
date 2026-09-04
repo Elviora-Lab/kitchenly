@@ -6,6 +6,7 @@ import { serverEnv } from '@/config/env';
 
 import {
   type AdDatePreset,
+  type AdDateSelection,
   adPresetToDateRange,
   adPresetToDateWindow,
   adPresetToPreviousDateWindow,
@@ -45,7 +46,7 @@ function accountPath(): string {
 // Date-range presets live in a client-safe module so the dashboard's client
 // components can share them without importing this `server-only` file. Re-export
 // here so server-side callers keep a single import surface.
-export type { AdDatePreset } from '@/lib/ads/date-presets';
+export type { AdDatePreset, AdDateSelection } from '@/lib/ads/date-presets';
 export {
   AD_DATE_PRESET_LABELS,
   AD_DATE_PRESETS,
@@ -319,22 +320,28 @@ function safe<T>(promise: Promise<T>, fallback: T): Promise<T> {
  * the same dates. Meta documents `time_range` as overriding `date_preset`, so
  * use it for every finite dashboard range and keep `maximum` as Meta's preset.
  */
-function insightsDateParams(preset: AdDatePreset): Record<string, string> {
-  const window = adPresetToDateWindow(preset);
-  return window ? { time_range: JSON.stringify(window) } : { date_preset: preset };
+function insightsDateParams(selection: AdDateSelection): Record<string, string> {
+  const window = adPresetToDateWindow(selection);
+  return window
+    ? { time_range: JSON.stringify(window) }
+    : { date_preset: selection as AdDatePreset };
+}
+
+function dateSelectionCacheKey(selection: AdDateSelection): string {
+  return typeof selection === 'string' ? selection : `${selection.since}_${selection.until}`;
 }
 
 export const presetToDateRange = adPresetToDateRange;
 
 async function fetchBreakdown(
   act: string,
-  datePreset: AdDatePreset,
+  dateSelection: AdDateSelection,
   breakdowns: string,
   toLabel: (row: InsightRow) => string,
 ): Promise<BreakdownRow[]> {
   const res = await graphGet<{ data?: InsightRow[] }>(`${act}/insights`, {
     fields: BREAKDOWN_FIELDS,
-    ...insightsDateParams(datePreset),
+    ...insightsDateParams(dateSelection),
     level: 'account',
     breakdowns,
     limit: '50',
@@ -394,24 +401,24 @@ function campaignFilter(campaignId?: string): Record<string, string> {
 }
 
 export function getAdsSummary(
-  datePreset: AdDatePreset,
+  dateSelection: AdDateSelection,
   campaignId?: string,
 ): Promise<AdsSummaryResult> {
   return unstable_cache(
-    () => fetchAdsSummary(datePreset, campaignId),
-    ['meta-ads-summary', datePreset, campaignId ?? 'all'],
+    () => fetchAdsSummary(dateSelection, campaignId),
+    ['meta-ads-summary', dateSelectionCacheKey(dateSelection), campaignId ?? 'all'],
     { revalidate: ADS_CACHE_TTL, tags: ['meta-ads'] },
   )();
 }
 
 async function fetchAdsSummary(
-  datePreset: AdDatePreset,
+  dateSelection: AdDateSelection,
   campaignId?: string,
 ): Promise<AdsSummaryResult> {
   if (!adsInsightsEnabled()) return { ok: false, error: 'Meta Ads is not configured.' };
 
   const act = accountPath();
-  const prev = adPresetToPreviousDateWindow(datePreset);
+  const prev = adPresetToPreviousDateWindow(dateSelection);
   const scope = campaignFilter(campaignId);
 
   try {
@@ -419,7 +426,7 @@ async function fetchAdsSummary(
       fetchAccountMeta(act),
       graphGet<{ data?: InsightRow[] }>(`${act}/insights`, {
         fields: INSIGHT_FIELDS,
-        ...insightsDateParams(datePreset),
+        ...insightsDateParams(dateSelection),
         level: 'account',
         ...scope,
       }),
@@ -437,7 +444,7 @@ async function fetchAdsSummary(
       safe(
         graphGet<{ data?: InsightRow[] }>(`${act}/insights`, {
           fields: 'spend,action_values,purchase_roas',
-          ...insightsDateParams(datePreset),
+          ...insightsDateParams(dateSelection),
           level: 'account',
           time_increment: '1',
           limit: '200',
@@ -472,15 +479,17 @@ async function fetchAdsSummary(
 }
 
 /** Breakdowns submodule — spend/ROAS split by placement, demographic and device. */
-export function getAdsBreakdownsData(datePreset: AdDatePreset): Promise<AdsBreakdownsResult> {
+export function getAdsBreakdownsData(dateSelection: AdDateSelection): Promise<AdsBreakdownsResult> {
   return unstable_cache(
-    () => fetchAdsBreakdownsData(datePreset),
-    ['meta-ads-breakdowns', datePreset],
+    () => fetchAdsBreakdownsData(dateSelection),
+    ['meta-ads-breakdowns', dateSelectionCacheKey(dateSelection)],
     { revalidate: ADS_CACHE_TTL, tags: ['meta-ads'] },
   )();
 }
 
-async function fetchAdsBreakdownsData(datePreset: AdDatePreset): Promise<AdsBreakdownsResult> {
+async function fetchAdsBreakdownsData(
+  dateSelection: AdDateSelection,
+): Promise<AdsBreakdownsResult> {
   if (!adsInsightsEnabled()) return { ok: false, error: 'Meta Ads is not configured.' };
 
   const act = accountPath();
@@ -492,7 +501,7 @@ async function fetchAdsBreakdownsData(datePreset: AdDatePreset): Promise<AdsBrea
     const [meta, placement, demographic, device, country, region] = await Promise.all([
       fetchAccountMeta(act),
       safe(
-        fetchBreakdown(act, datePreset, 'publisher_platform', (r) =>
+        fetchBreakdown(act, dateSelection, 'publisher_platform', (r) =>
           titleCase(r.publisher_platform ?? 'Unknown'),
         ),
         [],
@@ -500,24 +509,24 @@ async function fetchAdsBreakdownsData(datePreset: AdDatePreset): Promise<AdsBrea
       safe(
         fetchBreakdown(
           act,
-          datePreset,
+          dateSelection,
           'age,gender',
           (r) => `${r.age ?? '?'} · ${titleCase(r.gender ?? 'unknown')}`,
         ),
         [],
       ),
       safe(
-        fetchBreakdown(act, datePreset, 'impression_device', (r) =>
+        fetchBreakdown(act, dateSelection, 'impression_device', (r) =>
           titleCase(r.impression_device ?? 'Unknown'),
         ),
         [],
       ),
       safe(
-        fetchBreakdown(act, datePreset, 'country', (r) => r.country ?? 'Unknown'),
+        fetchBreakdown(act, dateSelection, 'country', (r) => r.country ?? 'Unknown'),
         [],
       ),
       safe(
-        fetchBreakdown(act, datePreset, 'region', (r) => r.region ?? 'Unknown'),
+        fetchBreakdown(act, dateSelection, 'region', (r) => r.region ?? 'Unknown'),
         [],
       ),
     ]);
@@ -538,21 +547,21 @@ export type CampaignOption = { id: string; name: string };
 
 /** Lightweight {id, name} list of campaigns that spent in the window — powers the
  *  funnel's campaign filter. Sorted by spend so the biggest campaigns lead. */
-export function getAdsCampaignOptions(datePreset: AdDatePreset): Promise<CampaignOption[]> {
+export function getAdsCampaignOptions(dateSelection: AdDateSelection): Promise<CampaignOption[]> {
   return unstable_cache(
-    () => fetchAdsCampaignOptions(datePreset),
-    ['meta-ads-campaign-options', datePreset],
+    () => fetchAdsCampaignOptions(dateSelection),
+    ['meta-ads-campaign-options', dateSelectionCacheKey(dateSelection)],
     { revalidate: ADS_CACHE_TTL, tags: ['meta-ads'] },
   )();
 }
 
-async function fetchAdsCampaignOptions(datePreset: AdDatePreset): Promise<CampaignOption[]> {
+async function fetchAdsCampaignOptions(dateSelection: AdDateSelection): Promise<CampaignOption[]> {
   if (!adsInsightsEnabled()) return [];
   const act = accountPath();
   const res = await safe(
     graphGet<{ data?: InsightRow[] }>(`${act}/insights`, {
       fields: 'campaign_id,campaign_name,spend',
-      ...insightsDateParams(datePreset),
+      ...insightsDateParams(dateSelection),
       level: 'campaign',
       sort: 'spend_descending',
       limit: '100',
@@ -572,15 +581,15 @@ async function fetchAdsCampaignOptions(datePreset: AdDatePreset): Promise<Campai
 }
 
 /** Campaigns submodule — per-campaign performance (with live status) and top ads. */
-export function getAdsCampaignsData(datePreset: AdDatePreset): Promise<AdsCampaignsResult> {
+export function getAdsCampaignsData(dateSelection: AdDateSelection): Promise<AdsCampaignsResult> {
   return unstable_cache(
-    () => fetchAdsCampaignsData(datePreset),
-    ['meta-ads-campaigns', datePreset],
+    () => fetchAdsCampaignsData(dateSelection),
+    ['meta-ads-campaigns', dateSelectionCacheKey(dateSelection)],
     { revalidate: ADS_CACHE_TTL, tags: ['meta-ads'] },
   )();
 }
 
-async function fetchAdsCampaignsData(datePreset: AdDatePreset): Promise<AdsCampaignsResult> {
+async function fetchAdsCampaignsData(dateSelection: AdDateSelection): Promise<AdsCampaignsResult> {
   if (!adsInsightsEnabled()) return { ok: false, error: 'Meta Ads is not configured.' };
 
   const act = accountPath();
@@ -590,7 +599,7 @@ async function fetchAdsCampaignsData(datePreset: AdDatePreset): Promise<AdsCampa
       fetchAccountMeta(act),
       graphGet<{ data?: InsightRow[] }>(`${act}/insights`, {
         fields: `${INSIGHT_FIELDS},campaign_id,campaign_name`,
-        ...insightsDateParams(datePreset),
+        ...insightsDateParams(dateSelection),
         level: 'campaign',
         limit: '200',
       }),
@@ -604,7 +613,7 @@ async function fetchAdsCampaignsData(datePreset: AdDatePreset): Promise<AdsCampa
       safe(
         graphGet<{ data?: InsightRow[] }>(`${act}/insights`, {
           fields: 'ad_id,ad_name,campaign_name,spend,actions,action_values,purchase_roas',
-          ...insightsDateParams(datePreset),
+          ...insightsDateParams(dateSelection),
           level: 'ad',
           sort: 'spend_descending',
           limit: '8',

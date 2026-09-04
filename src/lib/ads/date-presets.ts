@@ -52,6 +52,9 @@ export const AD_RANGE_TABS: AdDatePreset[] = [
 ];
 
 export type AdDateWindow = { since: string; until: string };
+export type AdDateSelection = AdDatePreset | AdDateWindow;
+
+type AdDateSearchParams = { range?: string; from?: string; to?: string };
 
 /**
  * Meta Ads Manager rolls this account's reporting day at noon in Pakistan.
@@ -109,6 +112,39 @@ function metaReportingDay(now: Date): Date {
     : pakistanCalendarDay;
 }
 
+export function currentMetaReportingDate(now = new Date()): string {
+  return fmtDate(metaReportingDay(now));
+}
+
+function isCalendarDate(value: string | undefined): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && fmtDate(parsed) === value;
+}
+
+/** Resolve URL parameters into either a preset or a validated custom window. */
+export function parseAdDateSelection(
+  params: AdDateSearchParams,
+  now = new Date(),
+): AdDateSelection {
+  if (params.range === 'custom' && isCalendarDate(params.from) && isCalendarDate(params.to)) {
+    const latestAllowed = currentMetaReportingDate(now);
+    if (params.from <= params.to && params.to <= latestAllowed) {
+      return { since: params.from, until: params.to };
+    }
+  }
+  return isAdDatePreset(params.range) ? params.range : DEFAULT_AD_RANGE;
+}
+
+export function adDateSelectionToSearchParams(selection: AdDateSelection): string {
+  if (typeof selection === 'string') return `range=${selection}`;
+  return new URLSearchParams({
+    range: 'custom',
+    from: selection.since,
+    to: selection.until,
+  }).toString();
+}
+
 function storeNoon(date: Date): Date {
   // Pakistan is UTC+5 year-round. `date` is a UTC calendar-only value here.
   return new Date(
@@ -128,7 +164,12 @@ function storeNoon(date: Date): Date {
  * the store reconciliation on the same calendar dates. Last-N-day presets are
  * inclusive of today: on Aug 27, "Last 7 days" is Aug 21 through Aug 27.
  */
-export function adPresetToDateWindow(preset: AdDatePreset, now = new Date()): AdDateWindow | null {
+export function adPresetToDateWindow(
+  selection: AdDateSelection,
+  now = new Date(),
+): AdDateWindow | null {
+  if (typeof selection !== 'string') return selection;
+  const preset = selection;
   const today = metaReportingDay(now);
   const days = FIXED_DAY_PRESETS[preset];
 
@@ -157,10 +198,10 @@ export function adPresetToDateWindow(preset: AdDatePreset, now = new Date()): Ad
 }
 
 export function adPresetToPreviousDateWindow(
-  preset: AdDatePreset,
+  selection: AdDateSelection,
   now = new Date(),
 ): (AdDateWindow & { label: string }) | null {
-  const current = adPresetToDateWindow(preset, now);
+  const current = adPresetToDateWindow(selection, now);
   if (!current) return null;
 
   const start = new Date(`${current.since}T00:00:00.000Z`);
@@ -177,10 +218,10 @@ export function adPresetToPreviousDateWindow(
 }
 
 export function adPresetToDateRange(
-  preset: AdDatePreset,
+  selection: AdDateSelection,
   now = new Date(),
 ): { since: Date; until: Date } {
-  const window = adPresetToDateWindow(preset, now);
+  const window = adPresetToDateWindow(selection, now);
   if (!window) {
     return { since: new Date(Date.UTC(2000, 0, 1)), until: now };
   }

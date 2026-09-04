@@ -4,6 +4,7 @@ import {
   adPresetToDateRange,
   adPresetToDateWindow,
   adPresetToPreviousDateWindow,
+  parseAdDateSelection,
 } from '@/lib/ads/date-presets';
 
 const NOW = new Date('2026-08-27T12:34:56.000Z');
@@ -54,5 +55,17 @@ describe('ad dashboard date presets', () => {
       since: new Date('2026-08-26T07:00:00.000Z'),
       until: beforeNoonPakistan,
     });
+  });
+
+  it('accepts a completed custom period and rejects future dates', () => {
+    expect(
+      parseAdDateSelection({ range: 'custom', from: '2026-08-02', to: '2026-08-14' }, NOW),
+    ).toEqual({
+      since: '2026-08-02',
+      until: '2026-08-14',
+    });
+    expect(
+      parseAdDateSelection({ range: 'custom', from: '2026-08-02', to: '2026-08-28' }, NOW),
+    ).toBe('last_30d');
   });
 });

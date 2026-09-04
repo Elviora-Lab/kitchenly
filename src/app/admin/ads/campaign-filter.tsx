@@ -6,15 +6,15 @@ import type { CampaignOption } from '@/server/analytics/meta-ads';
 
 /**
  * Campaign scope selector for the funnel. Native select for reliability; writes
- * `?campaign=<id>` (preserving the current `?range=`) and lets the RSC refetch
+ * `?campaign=<id>` (preserving the current reporting window) and lets the RSC refetch
  * the funnel scoped to that campaign. "All campaigns" clears the scope.
  */
 export function CampaignFilter({
-  range,
+  dateQuery,
   campaignId,
   options,
 }: {
-  range: string;
+  dateQuery: string;
   campaignId?: string;
   options: CampaignOption[];
 }) {
@@ -25,7 +25,7 @@ export function CampaignFilter({
       <select
         value={campaignId ?? ''}
         onChange={(e) => {
-          const params = new URLSearchParams({ range });
+          const params = new URLSearchParams(dateQuery);
           if (e.target.value) params.set('campaign', e.target.value);
           router.push(`/admin/ads/funnel?${params.toString()}`);
         }}

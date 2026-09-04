@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp } from 'lucide-react';
 
-import { DEFAULT_AD_RANGE, isAdDatePreset } from '@/lib/ads/date-presets';
+import { parseAdDateSelection } from '@/lib/ads/date-presets';
 import { cn } from '@/lib/cn';
 
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,11 +19,10 @@ import {
 import { adminAnalyticsRepo } from '@/server/repositories/admin.repo';
 
 type StoreSales = { revenue: number; orders: number; currency: string };
-type Props = { searchParams: Promise<{ range?: string }> };
+type Props = { searchParams: Promise<{ range?: string; from?: string; to?: string }> };
 
 export default async function AdminAdsOverviewPage({ searchParams }: Props) {
-  const { range: rawRange } = await searchParams;
-  const range = isAdDatePreset(rawRange) ? rawRange : DEFAULT_AD_RANGE;
+  const range = parseAdDateSelection(await searchParams);
 
   if (!adsInsightsEnabled()) return <SetupCard />;
 

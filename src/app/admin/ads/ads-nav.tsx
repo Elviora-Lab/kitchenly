@@ -1,11 +1,14 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { CalendarRange } from 'lucide-react';
 
 import {
   AD_DATE_PRESET_LABELS,
   AD_RANGE_TABS,
+  currentMetaReportingDate,
   DEFAULT_AD_RANGE,
   isAdDatePreset,
 } from '@/lib/ads/date-presets';
@@ -27,10 +30,25 @@ const SUB_TABS = [
  * change the range. Lives in the layout, so it renders once for every sub-page.
  */
 export function AdsNav() {
+  const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const rawRange = params.get('range') ?? undefined;
   const range = isAdDatePreset(rawRange) ? rawRange : DEFAULT_AD_RANGE;
+  const isCustom = rawRange === 'custom';
+  const latestAllowed = currentMetaReportingDate();
+  const [from, setFrom] = useState(params.get('from') ?? '');
+  const [to, setTo] = useState(params.get('to') ?? '');
+
+  useEffect(() => {
+    setFrom(params.get('from') ?? '');
+    setTo(params.get('to') ?? '');
+  }, [params]);
+
+  const selectedDateQuery =
+    isCustom && from && to
+      ? new URLSearchParams({ range: 'custom', from, to }).toString()
+      : `range=${range}`;
 
   const isActive = (href: string) =>
     href === '/admin/ads' ? pathname === '/admin/ads' : pathname.startsWith(href);
@@ -41,7 +59,7 @@ export function AdsNav() {
         {SUB_TABS.map((t) => (
           <Link
             key={t.href}
-            href={`${t.href}?range=${range}`}
+            href={`${t.href}?${selectedDateQuery}`}
             aria-current={isActive(t.href) ? 'page' : undefined}
             className={cn(
               'rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
@@ -64,7 +82,7 @@ export function AdsNav() {
               aria-current={preset === range ? 'true' : undefined}
               className={cn(
                 'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-                preset === range
+                !isCustom && preset === range
                   ? 'bg-muted text-foreground ring-1 ring-inset ring-border'
                   : 'text-muted-foreground hover:bg-muted/70',
               )}
@@ -73,6 +91,41 @@ export function AdsNav() {
             </Link>
           ))}
         </nav>
+        <form
+          className="flex items-center gap-1.5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!from || !to || from > to) return;
+            router.push(`${pathname}?${new URLSearchParams({ range: 'custom', from, to })}`);
+          }}
+        >
+          <CalendarRange className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <input
+            type="date"
+            value={from}
+            max={to || latestAllowed}
+            onChange={(event) => setFrom(event.target.value)}
+            aria-label="Custom range start date"
+            className="h-8 w-[132px] rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
+          />
+          <span className="text-xs text-muted-foreground">to</span>
+          <input
+            type="date"
+            value={to}
+            min={from || undefined}
+            max={latestAllowed}
+            onChange={(event) => setTo(event.target.value)}
+            aria-label="Custom range end date"
+            className="h-8 w-[132px] rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
+          />
+          <button
+            type="submit"
+            disabled={!from || !to || from > to}
+            className="h-8 rounded-md border border-border px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Apply
+          </button>
+        </form>
         <AdsRefreshButton />
       </div>
     </div>
