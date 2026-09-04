@@ -219,6 +219,9 @@ export function CartPageClient() {
               <ArrowRight className="size-4" aria-hidden />
             </Link>
           </Button>
+          <p className="text-center text-xs text-muted-foreground">
+            No card needed. Place the order now and pay cash on delivery.
+          </p>
           <TrustBar />
         </aside>
       </div>
@@ -232,7 +235,7 @@ export function CartPageClient() {
           <Button asChild size="lg" variant="cta" uppercase className="shrink-0">
             <Link href="/checkout">
               <Lock className="size-4" aria-hidden />
-              Checkout
+              COD checkout
             </Link>
           </Button>
         </div>

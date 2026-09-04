@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Check, ChevronLeft, ChevronRight, Flame, Zap } from 'lucide-react';
+import { BadgeCheck, Check, ChevronLeft, ChevronRight, Flame, Truck, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAppDispatch } from '@/store/hooks';
@@ -135,6 +135,8 @@ export function ProductExperience({
   const currentCompareAt = onSale ? selected?.originalPrice : comparePrice;
   const maxForVariant = selected?.stockQuantity ?? 0;
   const canAdd = !!selected && selected.isActive && selected.stockQuantity > 0;
+  const selectedLineTotal = currentPrice * quantity;
+  const remainingForFreeDelivery = Math.max(0, FREE_SHIPPING_THRESHOLD - selectedLineTotal);
 
   const total = images.length;
   const active = images[activeIndex];
@@ -463,7 +465,9 @@ export function ProductExperience({
               ) : outOfStock ? (
                 'Out of stock'
               ) : canAdd ? (
-                'Add to cart'
+                <>
+                  Add to cart <Price amount={selectedLineTotal} currency={currency} size="sm" />
+                </>
               ) : (
                 'Unavailable'
               )}
@@ -487,13 +491,38 @@ export function ProductExperience({
             ) : null}
 
             <p className="text-xs text-muted-foreground">
-              Free delivery over Rs {FREE_SHIPPING_THRESHOLD.toLocaleString('en-US')} · Cash on
-              delivery · 2–3 day returns
+              {remainingForFreeDelivery > 0 ? (
+                <>
+                  Add <Price amount={remainingForFreeDelivery} currency={currency} size="sm" /> more
+                  for free delivery.
+                </>
+              ) : (
+                'Free delivery unlocked for this selection.'
+              )}{' '}
+              Cash on delivery · 2–3 day returns
             </p>
+            <div className="grid gap-2 border-y border-border/70 py-3 text-sm text-muted-foreground sm:grid-cols-2">
+              <p className="flex items-start gap-2">
+                <Truck className="mt-0.5 size-4 shrink-0 text-foreground/80" aria-hidden />
+                <span>
+                  <strong className="font-medium text-foreground">Delivery in 2–5 days</strong>
+                  <br />
+                  Nationwide cash on delivery.
+                </span>
+              </p>
+              <p className="flex items-start gap-2">
+                <BadgeCheck className="mt-0.5 size-4 shrink-0 text-foreground/80" aria-hidden />
+                <span>
+                  <strong className="font-medium text-foreground">Checked before dispatch</strong>
+                  <br />
+                  Returns accepted within 2–3 days.
+                </span>
+              </p>
+            </div>
             <TrustBar />
           </div>
 
-          <Accordion type="multiple" defaultValue={['description']} className="mt-2">
+          <Accordion type="multiple" defaultValue={['description', 'shipping']} className="mt-2">
             <AccordionItem value="description">
               <AccordionTrigger>Description</AccordionTrigger>
               <AccordionContent>

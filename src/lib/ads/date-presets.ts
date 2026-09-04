@@ -53,6 +53,14 @@ export const AD_RANGE_TABS: AdDatePreset[] = [
 
 export type AdDateWindow = { since: string; until: string };
 
+/**
+ * Meta Ads Manager rolls this account's reporting day at noon in Pakistan.
+ * Keep the dashboard's "today" and its store-order comparison on that same
+ * boundary, rather than switching at either the server's or UTC midnight.
+ */
+export const META_REPORTING_CUTOFF_HOUR_PAKISTAN = 12;
+const PAKISTAN_TIME_ZONE = 'Asia/Karachi';
+
 const FIXED_DAY_PRESETS: Partial<Record<AdDatePreset, number>> = {
   today: 1,
   yesterday: 1,
@@ -61,10 +69,6 @@ const FIXED_DAY_PRESETS: Partial<Record<AdDatePreset, number>> = {
   last_30d: 30,
   last_90d: 90,
 };
-
-function utcDay(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
 
 function addUtcDays(date: Date, days: number): Date {
   const next = new Date(date);
@@ -82,6 +86,41 @@ function fmtDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+function pakistanDateParts(now: Date): { year: number; month: number; day: number; hour: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: PAKISTAN_TIME_ZONE,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+  }).formatToParts(now);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+
+  return { year: get('year'), month: get('month'), day: get('day'), hour: get('hour') };
+}
+
+function metaReportingDay(now: Date): Date {
+  const parts = pakistanDateParts(now);
+  const pakistanCalendarDay = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+  return parts.hour < META_REPORTING_CUTOFF_HOUR_PAKISTAN
+    ? addUtcDays(pakistanCalendarDay, -1)
+    : pakistanCalendarDay;
+}
+
+function storeNoon(date: Date): Date {
+  // Pakistan is UTC+5 year-round. `date` is a UTC calendar-only value here.
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      META_REPORTING_CUTOFF_HOUR_PAKISTAN - 5,
+    ),
+  );
+}
+
 /**
  * Exact date window shown by the ads dashboard.
  *
@@ -90,7 +129,7 @@ function fmtDate(date: Date): string {
  * inclusive of today: on Aug 27, "Last 7 days" is Aug 21 through Aug 27.
  */
 export function adPresetToDateWindow(preset: AdDatePreset, now = new Date()): AdDateWindow | null {
-  const today = utcDay(now);
+  const today = metaReportingDay(now);
   const days = FIXED_DAY_PRESETS[preset];
 
   if (preset === 'yesterday') {
@@ -146,8 +185,15 @@ export function adPresetToDateRange(
     return { since: new Date(Date.UTC(2000, 0, 1)), until: now };
   }
 
+  const sinceDay = new Date(`${window.since}T00:00:00.000Z`);
+  const untilDay = new Date(`${window.until}T00:00:00.000Z`);
+  const activeReportingDay = metaReportingDay(now);
+  const isCurrentReportingDay = fmtDate(untilDay) === fmtDate(activeReportingDay);
+
   return {
-    since: new Date(`${window.since}T00:00:00.000Z`),
-    until: new Date(`${window.until}T23:59:59.999Z`),
+    since: storeNoon(sinceDay),
+    // Today's window is intentionally partial: Meta has only reported data up
+    // to this instant, so include store orders only up to the same point.
+    until: isCurrentReportingDay ? now : new Date(storeNoon(addUtcDays(untilDay, 1)).getTime() - 1),
   };
 }

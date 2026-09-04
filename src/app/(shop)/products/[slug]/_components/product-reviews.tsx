@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { BadgeCheck } from 'lucide-react';
 
 import { formatDate } from '@/utils/format';
@@ -15,6 +16,7 @@ type ReviewRow = {
   createdAt: Date;
   authorName: string | null;
   user: { firstName: string | null; lastName: string | null } | null;
+  images: { id: string; imageUrl: string }[];
 };
 
 function authorName(r: Pick<ReviewRow, 'user' | 'authorName'>) {
@@ -54,6 +56,16 @@ export function ProductReviews({
             <Rating value={summary.average} reviewCount={summary.count} size={16} />
           ) : null}
         </div>
+        {summary.count > 0 ? (
+          <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+            <BadgeCheck className="size-4 text-success" aria-hidden />
+            Reviews from customers who received their orders.
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Delivered customers can leave a verified review here.
+          </p>
+        )}
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
@@ -77,6 +89,28 @@ export function ProductReviews({
                   <p className="text-pretty text-sm leading-relaxed text-muted-foreground">
                     {r.comment}
                   </p>
+                ) : null}
+                {r.images.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {r.images.map((image) => (
+                      <a
+                        key={image.id}
+                        href={image.imageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="relative block size-20 overflow-hidden rounded-md border border-border bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label={`View photo shared by ${authorName(r)}`}
+                      >
+                        <Image
+                          src={image.imageUrl}
+                          alt="Photo shared with this review"
+                          fill
+                          sizes="80px"
+                          className="object-cover"
+                        />
+                      </a>
+                    ))}
+                  </div>
                 ) : null}
                 <p className="text-xs text-muted-foreground/80">
                   {authorName(r)} · {formatDate(r.createdAt, { dateStyle: 'medium' })}

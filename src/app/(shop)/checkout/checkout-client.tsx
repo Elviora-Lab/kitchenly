@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Lock } from 'lucide-react';
+import { BadgeCheck, Lock, Phone, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAppSelector } from '@/store/hooks';
@@ -281,7 +281,7 @@ export function CheckoutClient({
             <CardTitle>Shipping address</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <Field label="Email (optional)">
+            <Field label="Email for order updates (optional)">
               <Input
                 type="email"
                 inputMode="email"
@@ -289,6 +289,9 @@ export function CheckoutClient({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                We send the order confirmation and shipping updates here.
+              </p>
             </Field>
 
             {addresses.length > 0 ? (
@@ -489,6 +492,20 @@ export function CheckoutClient({
           <Lock className="size-4" aria-hidden />
           Place COD order
         </Button>
+        <div className="grid grid-cols-1 gap-2 text-xs text-muted-foreground">
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
+            <Truck className="mt-0.5 size-4 shrink-0 text-foreground/70" aria-hidden />
+            <span>Pay cash when the parcel reaches your door.</span>
+          </div>
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
+            <Phone className="mt-0.5 size-4 shrink-0 text-foreground/70" aria-hidden />
+            <span>We can call if the courier needs delivery confirmation.</span>
+          </div>
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
+            <BadgeCheck className="mt-0.5 size-4 shrink-0 text-foreground/70" aria-hidden />
+            <span>Your order is checked before dispatch.</span>
+          </div>
+        </div>
         <TrustBar className="pt-1" />
       </aside>
     </div>

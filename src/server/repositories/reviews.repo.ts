@@ -18,6 +18,7 @@ export const reviewsRepo = {
         createdAt: true,
         authorName: true,
         user: { select: { firstName: true, lastName: true } },
+        images: { select: { id: true, imageUrl: true } },
       },
     });
   },

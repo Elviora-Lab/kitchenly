@@ -19,6 +19,9 @@ export default function AdsLayout({ children }: { children: React.ReactNode }) {
         <p className="text-sm text-muted-foreground">
           Spend, ROAS, funnel and conversions from Meta Ads.
         </p>
+        <p className="text-xs text-muted-foreground">
+          Meta reporting day: 12:00 PM to 11:59 AM Pakistan time.
+        </p>
       </header>
 
       {configured ? (

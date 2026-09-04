@@ -39,7 +39,20 @@ describe('ad dashboard date presets', () => {
 
   it('returns full-day Date bounds for store reconciliation', () => {
     const { since, until } = adPresetToDateRange('last_30d', NOW);
-    expect(since.toISOString()).toBe('2026-07-29T00:00:00.000Z');
-    expect(until.toISOString()).toBe('2026-08-27T23:59:59.999Z');
+    expect(since.toISOString()).toBe('2026-07-29T07:00:00.000Z');
+    expect(until.toISOString()).toBe(NOW.toISOString());
+  });
+
+  it('keeps Meta today on the previous reporting day until noon in Pakistan', () => {
+    const beforeNoonPakistan = new Date('2026-08-27T06:59:59.000Z');
+
+    expect(adPresetToDateWindow('today', beforeNoonPakistan)).toEqual({
+      since: '2026-08-26',
+      until: '2026-08-26',
+    });
+    expect(adPresetToDateRange('today', beforeNoonPakistan)).toEqual({
+      since: new Date('2026-08-26T07:00:00.000Z'),
+      until: beforeNoonPakistan,
+    });
   });
 });
